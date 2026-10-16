@@ -32,13 +32,15 @@ class ChannelBody(BaseModel):
     name: str = ""
     type: str = "webhook"
     webhook_url: str = ""
+    secret: str = ""
     enabled: bool = True
 
 
 @router.post("/im/channels")
 def add_channel(body: ChannelBody) -> dict:
     item = {"name": (body.name or "").strip(), "type": body.type,
-            "webhook_url": body.webhook_url, "enabled": body.enabled}
+            "webhook_url": body.webhook_url, "secret": (body.secret or "").strip(),
+            "enabled": body.enabled}
     r = get_broker().add_channel(item)
     if not r.get("ok"):
         raise HTTPException(status_code=400, detail=r.get("message", "新增失败"))
@@ -48,7 +50,8 @@ def add_channel(body: ChannelBody) -> dict:
 @router.put("/im/channels/{name}")
 def update_channel(name: str, body: ChannelBody) -> dict:
     item = {"name": (body.name or "").strip(), "type": body.type,
-            "webhook_url": body.webhook_url, "enabled": body.enabled}
+            "webhook_url": body.webhook_url, "secret": (body.secret or "").strip(),
+            "enabled": body.enabled}
     r = get_broker().update_channel(name, item)
     if not r.get("ok"):
         raise HTTPException(status_code=404, detail=r.get("message", "更新失败"))

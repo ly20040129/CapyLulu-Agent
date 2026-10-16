@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 from capylulu.kb import ask, index as kb_index
 from capylulu.kb import store as kb_store
@@ -27,8 +28,18 @@ def kb_list() -> dict:
     return {"kbs": _wrap(kb_store.list_kbs)}
 
 
+class KbCreateBody(BaseModel):
+    name: str = ""
+
+
 @router.post("/kb")
-def kb_create(name: str) -> dict:
+def kb_create(body: KbCreateBody) -> dict:
+    # 前端 kbApi.create 以 JSON body 提交 {"name": ...}；
+    # 若声明为 def kb_create(name: str) 会被 FastAPI 当作必填 query 参数，
+    # 报 {"detail":[{"loc":["query","name"],"msg":"Field required"}]}。
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="知识库名称不能为空")
     return _wrap(kb_store.create_kb, name)
 
 

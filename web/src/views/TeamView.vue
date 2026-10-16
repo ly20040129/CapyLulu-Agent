@@ -225,7 +225,7 @@ function selectAgent(a) {
   creating.value = false
   form.value = {
     name: a.name, role: a.role, prompt: a.prompt,
-    keywords: a.keywords, tools: a.tools,
+    keywords: (a.keywords || []).join(', '), tools: (a.tools || []).join(', '),
     capabilities: (a.capabilities || []).join(', '),
     description: a.description || '',
     icon: a.icon || '',

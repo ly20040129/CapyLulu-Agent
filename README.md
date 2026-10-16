@@ -450,7 +450,7 @@ tools/file_ops.py           文件管家调 search_files / list_dir 找到发票
 
 ## 桌宠
 
-启动后点「召唤桌宠」拉起 `capylulu/pet.py`：
+启动后点「召唤噜噜」拉起 `capylulu/pet.py`：
 
 - Tkinter 置顶透明窗口，Pillow 抠图（品红透明键 + 边缘羽化，不冒紫光）
 - 拖动移动、单击互动（弹跳 + 台词气泡）、双击旋转视角、双击右键 / Esc 关闭

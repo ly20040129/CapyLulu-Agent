@@ -43,6 +43,10 @@
           </button>
           <button class="btn" @click="editing = false">取消</button>
         </div>
+        <div v-if="form.type === 'webhook'" class="form-row">
+          <input v-model="form.secret" class="input grow" type="password" placeholder="钉钉加签密钥 secret（未开启加签留空）" />
+          <span class="form-hint">钉钉机器人在安全设置开启「加签」时必填，发送会自动带官方签名</span>
+        </div>
       </div>
 
       <div v-if="channels.length" class="channel-grid">
@@ -125,7 +129,7 @@ const busy = ref(false)
 const msg = ref('')
 const msgErr = ref(false)
 const editing = ref(false)
-const form = ref({ origin: '', name: '', type: 'webhook', webhook_url: '', enabled: true })
+const form = ref({ origin: '', name: '', type: 'webhook', webhook_url: '', secret: '', enabled: true })
 const pushChannel = ref('')
 const pushText = ref('')
 
@@ -161,19 +165,19 @@ async function refresh() {
 
 function startAdd() {
   editing.value = true
-  form.value = { origin: '', name: '', type: 'webhook', webhook_url: '', enabled: true }
+  form.value = { origin: '', name: '', type: 'webhook', webhook_url: '', secret: '', enabled: true }
 }
 
 function startEdit(c) {
   editing.value = true
-  form.value = { origin: c.name, name: c.name, type: c.type, webhook_url: c.webhook_url || '', enabled: !!c.enabled }
+  form.value = { origin: c.name, name: c.name, type: c.type, webhook_url: c.webhook_url || '', secret: c.secret || '', enabled: !!c.enabled }
 }
 
 async function submitForm() {
   if (!form.value.name.trim()) { flash('通道名称不能为空', true); return }
   busy.value = true
   try {
-    const body = { name: form.value.name.trim(), type: form.value.type, webhook_url: form.value.webhook_url.trim(), enabled: form.value.enabled }
+    const body = { name: form.value.name.trim(), type: form.value.type, webhook_url: form.value.webhook_url.trim(), secret: form.value.secret.trim(), enabled: form.value.enabled }
     const r = form.value.origin
       ? await imApi.update(form.value.origin, body)
       : await imApi.add(body)

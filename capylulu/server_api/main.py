@@ -40,6 +40,19 @@ def health() -> dict:
     return {"ok": True, "name": "capylulu-vue", "api": "2.0.0"}
 
 
+# 噜噜形象资源：根目录 assets/（1.png~7.png），前端通过 /lulu/*.png 访问
+lulu_dir = PROJECT_ROOT / "assets"
+if lulu_dir.is_dir():
+    app.mount("/lulu", StaticFiles(directory=str(lulu_dir), check_dir=False), name="lulu")
+
+
+# 文件发送目录：静态托管 data/send_files，供 send_file 工具生成的 /files/ 下载链接访问。
+# 须在 SPA fallback 之前注册，避免被吞；目录不存在时自动创建（check_dir=False 兜底容错）。
+send_dir = PROJECT_ROOT / "data" / "send_files"
+send_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/files", StaticFiles(directory=str(send_dir), check_dir=False), name="files")
+
+
 # 生产模式：托管 Vue 构建产物（须放在所有 API 路由之后，避免吞掉 /api/*）
 dist = PROJECT_ROOT / "web" / "dist"
 if dist.is_dir():

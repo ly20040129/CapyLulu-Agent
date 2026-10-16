@@ -55,6 +55,7 @@ _DEFAULTS = [
         "tools": [
             "read_file", "write_file", "append_file", "list_dir",
             "search_files", "search_text", "move_file", "list_desktop",
+            "send_file",
         ],
         "enabled": True,
         "builtin": True,
@@ -181,6 +182,10 @@ def _ensure_fields(agents: list[dict]) -> list[dict]:
             a["description"] = _DEFAULT_DESC.get(name) or (a.get("role") or "")
         if "icon" not in a:
             a["icon"] = _DEFAULT_ICON.get(name) or "/lulu/1.png"
+        # 内置 Agent 的 prompt 为空（存量 agents.json 常缺）时回退到 prompts.py 默认，
+        # 避免文件管家等专员拿空 system prompt 导致 LLM 不调用工具、编造"无权限"话术。
+        if name in _PROMPT_KEYS and not (a.get("prompt") or "").strip():
+            a["prompt"] = _default_prompt(name)
     return agents
 
 

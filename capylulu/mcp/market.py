@@ -20,7 +20,7 @@ MARKET_ITEMS: list[dict] = [
         "name": "filesystem",
         "display": "文件系统",
         "type": "stdio",
-        "config": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "D:/"]},
+        "config": {"command": "cmd.exe", "args": ["/c", "D:\\nodejs\\npx.cmd", "-y", "@modelcontextprotocol/server-filesystem", "D:/"]},
         "desc": "本地文件读写、目录遍历与操作（官方 reference server）",
         "keywords": ["文件", "fs", "目录", "file", "filesystem"],
     },

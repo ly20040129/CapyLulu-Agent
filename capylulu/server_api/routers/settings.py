@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from capylulu.config import config
 from capylulu.ui.common import agent, _llm_ready, _model_status_text
-from capylulu.ui.theme import PALETTES, PALETTE_NAMES
+from capylulu.ui.palette import PALETTES, PALETTE_NAMES
 
 router = APIRouter(tags=["settings"])
 

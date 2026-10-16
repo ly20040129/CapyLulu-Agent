@@ -16,7 +16,10 @@ router = APIRouter(tags=["skills"])
 
 
 @router.get("/skills")
-def list_skills() -> dict:
+def list_skill_store() -> dict:
+    # 注意：不能命名为 list_skills —— 会遮蔽上方 from capylulu.skills.runtime import list_skills，
+    # 导致 /skills/files 里调用到本函数（返回 {"items": [...]} dict），
+    # 前端 (.items || []).map 报 not a function。
     return {"items": skills_store.load_skills()}
 
 

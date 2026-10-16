@@ -58,11 +58,20 @@ def add_agent(body: AddAgentBody) -> dict:
 class UpdateAgentBody(BaseModel):
     role: str | None = None
     prompt: str | None = None
-    keywords: str | None = None
-    tools: str | None = None
-    capabilities: str | None = None
+    keywords: str | list[str] | None = None
+    tools: str | list[str] | None = None
+    capabilities: str | list[str] | None = None
     description: str | None = None
     icon: str | None = None
+
+
+def _csv(value: str | list[str] | None) -> str | None:
+    """把 str / list 统一成逗号分隔字符串（agents_store.update_agent 内部再 _split_list）。"""
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return ",".join(str(x) for x in value)
+    return str(value)
 
 
 @router.put("/team/agents/{name}")
@@ -72,9 +81,9 @@ def update_agent(name: str, body: UpdateAgentBody) -> dict:
             name,
             role=body.role,
             prompt=body.prompt,
-            keywords=body.keywords,
-            tools=body.tools,
-            capabilities=body.capabilities,
+            keywords=_csv(body.keywords),
+            tools=_csv(body.tools),
+            capabilities=_csv(body.capabilities),
             description=body.description,
             icon=body.icon,
         )

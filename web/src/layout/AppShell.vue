@@ -35,7 +35,7 @@
 
       <div class="side-actions">
         <button class="btn btn-primary btn-block btn-mascot" @click="callMascot">
-          <img src="/lulu/3.png" alt="噜噜" class="btn-mascot-img" /> 召唤桌宠
+          <img src="/lulu/3.png" alt="噜噜" class="btn-mascot-img" /> 召唤噜噜
         </button>
       </div>
 

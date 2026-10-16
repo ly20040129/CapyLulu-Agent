@@ -2,6 +2,7 @@
 import shutil
 from pathlib import Path
 
+from ..config import config
 from .registry import tool
 
 
@@ -130,3 +131,59 @@ def move_file(src: str, dst: str) -> str:
     d.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(s), str(d))
     return f"已移动 {src} → {dst}"
+
+
+@tool(
+    name="send_file",
+    description="把文件复制到共享发送目录并生成下载链接，用于发送文件给用户（返回 /files/ 下载链接）",
+    parameters={
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "源文件绝对路径"},
+        },
+        "required": ["path"],
+    },
+    risk="medium",
+)
+def send_file(path: str) -> str:
+    """复制文件到共享发送目录（data/send_files），返回下载 URL 与本地副本路径。
+
+    文件名冲突时自动追加序号（保留扩展名），避免覆盖已有文件。
+    下载 URL 形如 http://127.0.0.1:6661/files/<文件名>，由 main.py 静态挂载 /files 提供。
+    """
+    from urllib.parse import quote
+
+    src = Path(path)
+    if not src.exists():
+        return f"文件不存在: {path}"
+    if not src.is_file():
+        return f"路径是目录，不是文件: {path}"
+
+    send_dir = config.data_dir / "send_files"
+    send_dir.mkdir(parents=True, exist_ok=True)
+    target = _unique_target(send_dir, src.name)
+    try:
+        shutil.copy2(str(src), str(target))
+    except OSError as e:
+        return f"复制文件失败: {e}"
+
+    url_name = quote(target.name)
+    return (
+        f"已发送文件：{target.name}\n"
+        f"下载链接：http://127.0.0.1:6661/files/{url_name}\n"
+        f"本地副本：{target}"
+    )
+
+
+def _unique_target(directory: Path, name: str) -> Path:
+    """目标路径：同名已存在时追加 (1)(2) 序号，保留扩展名。"""
+    candidate = directory / name
+    if not candidate.exists():
+        return candidate
+    stem, suffix = candidate.stem, candidate.suffix
+    i = 1
+    while True:
+        candidate = directory / f"{stem} ({i}){suffix}"
+        if not candidate.exists():
+            return candidate
+        i += 1

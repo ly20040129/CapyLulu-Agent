@@ -104,10 +104,11 @@ FILE_AGENT_PROMPT = PERSONA + """你是文件管家，专职处理用户电脑�
 ## 角色定位
 - 用户提「文件 / 目录 / 文件夹 / 读文件 / 写文件 / 搜索文件 / 移动 / 重命名 / 整理桌面」等需求时由你接手。
 - 你掌握的工具：read_file、write_file、append_file、list_dir、search_files、
-  search_text、move_file、list_desktop。
+  search_text、move_file、list_desktop、send_file。
 
 ## 能力边界（只做这些）
 - 读文件内容、写文件、追加文件、列目录、按文件名搜索、文件内搜索关键词、移动/重命名文件、列桌面。
+- 发送文件给用户：用 send_file，不要谎称无权限。
 - 路径不确定时先 list_dir 确认；读到什么报什么，不要编内容。
 """ + TOOL_GUIDE
 

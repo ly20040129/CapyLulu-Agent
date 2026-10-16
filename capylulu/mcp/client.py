@@ -33,12 +33,23 @@ def sdk_ok() -> str:
 
 def _entry(cfg: dict) -> tuple:
     """返回 (进入函数, 参数)：mcp 1.x 的 asynccontextmanager 支持 async with 直接解包。"""
+    import os
+
     mtype = (cfg.get("type") or "stdio").lower()
     conf = cfg.get("config") or {}
     if mtype == "stdio":
+        command = conf.get("command", "")
+        args = conf.get("args", []) or []
+        # Windows 兜底：裸命令（如 npx）经 CreateProcess 直接拉起会 WinError 2，
+        # 自动包装为 cmd.exe /c <command> <args>，不依赖父进程 PATH 预置。
+        if os.name == "nt" and command and "/" not in command and "\\" not in command \
+                and command.lower() not in ("cmd", "cmd.exe") \
+                and not command.lower().endswith((".exe", ".cmd", ".bat", ".com")):
+            args = ["/c", command, *args]
+            command = "cmd.exe"
         params = StdioServerParameters(
-            command=conf.get("command", ""),
-            args=conf.get("args", []) or [],
+            command=command,
+            args=args,
             env=conf.get("env"),
         )
         return stdio_client, (params,)
@@ -76,11 +87,14 @@ async def _list_tools_async(cfg: dict) -> tuple[str, list[dict]]:
         try:
             await session.initialize()
             tools = await session.list_tools()
-            out = [{
-                "name": t.name,
-                "description": (t.description or "")[:200],
-                "inputSchema": t.inputSchema or {},
-            } for t in tools.tools]
+            out = []
+            for t in tools.tools:
+                schema = getattr(t, "inputSchema", None) or getattr(t, "input_schema", None) or {}
+                out.append({
+                    "name": t.name,
+                    "description": (t.description or "")[:200],
+                    "inputSchema": schema,
+                })
             return "", out
         finally:
             await session.__aexit__(None, None, None)

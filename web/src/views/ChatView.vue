@@ -20,7 +20,7 @@
         </div>
       </div>
       <div class="hist-foot">
-        <button class="btn btn-secondary btn-block btn-mascot" @click="callMascot"><img src="/lulu/3.png" alt="噜噜" class="btn-mascot-img" /> 召唤桌宠</button>
+        <button class="btn btn-secondary btn-block btn-mascot" @click="callMascot"><img src="/lulu/3.png" alt="噜噜" class="btn-mascot-img" /> 召唤噜噜</button>
       </div>
     </aside>
 
@@ -40,7 +40,7 @@
         <template v-else>
           <div v-for="(m, i) in messages" :key="i" class="msg-row" :class="m.role">
             <div class="msg-avatar"><img v-if="m.role === 'user'" src="/lulu/2.png" alt="我" class="avatar-img" /><img v-else src="/lulu/4.png" alt="噜噜" class="avatar-img" /></div>
-            <div class="msg-bubble">{{ m.content }}</div>
+            <div class="msg-bubble" v-html="renderMessage(m.content)"></div>
           </div>
         </template>
 
@@ -94,6 +94,29 @@ const shortTime = (t) => {
   if (Number.isNaN(d.getTime())) return ''
   const pad = (n) => String(n).padStart(2, '0')
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// 消息文本中的 /files/ 下载链接 → 可点击下载卡片；其余文本安全转义后原样展示
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function renderMessage(content) {
+  const esc = escapeHtml(content)
+  return esc.replace(
+    /(https?:\/\/[^\s"'<>（）()]+?\/files\/[^\s"'<>（）()]+)|(\/files\/[^\s"'<>（）()]+)/g,
+    (m) => {
+      const href = m.startsWith('/') ? window.location.origin + m : m
+      const fileName = decodeURIComponent(m.split('/files/')[1] || '文件')
+      const safeName = escapeHtml(fileName)
+      return `<a class="file-download-card" href="${escapeHtml(href)}" download="${safeName}" title="点击下载 ${safeName}"><span class="file-card-icon"></span><span class="file-card-name">${safeName}</span><span class="file-card-btn">下载</span></a>`
+    }
+  )
 }
 
 async function loadSessions() {
@@ -279,6 +302,51 @@ onMounted(async () => {
 }
 .msg-row.assistant .msg-bubble { background: var(--capy-bot-bg); border: 1px solid var(--capy-border-soft); border-top-left-radius: 4px; }
 .msg-row.user .msg-bubble { background: var(--capy-user-bg); border: 1px solid var(--capy-primary-border); border-top-right-radius: 4px; }
+
+/* 文件下载卡片：识别消息中的 /files/ 链接渲染 */
+.file-download-card {
+  display: inline-flex; align-items: center; gap: 10px;
+  margin: 6px 0;
+  padding: 8px 10px 8px 12px;
+  border-radius: var(--capy-radius-md);
+  background: var(--capy-card);
+  border: 1px solid var(--capy-primary-border);
+  box-shadow: var(--capy-shadow-card);
+  text-decoration: none;
+  color: var(--capy-text);
+  max-width: 100%;
+  transition: var(--capy-transition);
+}
+.file-download-card:hover { border-color: var(--capy-primary); background: var(--capy-primary-soft2); }
+.file-card-icon {
+  flex: 0 0 auto;
+  width: 22px; height: 26px;
+  position: relative;
+  border: 1.5px solid var(--capy-primary);
+  border-radius: 3px;
+}
+.file-card-icon::before {
+  content: '';
+  position: absolute; top: -1.5px; right: -1.5px;
+  width: 8px; height: 8px;
+  background: var(--capy-card);
+  border-left: 1.5px solid var(--capy-primary);
+  border-bottom: 1.5px solid var(--capy-primary);
+  border-radius: 0 3px 0 0;
+}
+.file-card-name {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 13px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.file-card-btn {
+  flex: 0 0 auto;
+  font-size: 12px; font-weight: 600;
+  color: #fff;
+  background: var(--capy-primary);
+  border-radius: var(--capy-radius-pill);
+  padding: 3px 10px;
+}
 
 .chat-input-row {
   flex: 0 0 auto;
