@@ -1,0 +1,25 @@
+# Capylulu 配置模板
+# 复制为 config.yaml 后填写你的 API Key 即可运行（config.yaml 已被 .gitignore 排除，不会上传）
+
+llm:
+  provider: zhipu
+  zhipu:
+    api_key: ''                 # 请填入你的智谱 API Key
+    base_url: https://open.bigmodel.cn/api/paas/v4/
+    model: glm-4-flash
+  deepseek:
+    api_key: ''                 # 可选：DeepSeek Key（备用 provider）
+    base_url: https://api.deepseek.com
+    model: deepseek-chat
+
+agent:
+  max_iterations: 10
+  max_history: 32
+  work_dir: .
+
+ui:
+  title: Capylulu 噜噜
+  palette: 琥珀暖暗
+
+general:
+  data_dir: data

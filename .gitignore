@@ -1,0 +1,39 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.venv/
+venv/
+env/
+
+# ===== Node / 前端构建 =====
+node_modules/
+web/node_modules/
+/dist/
+/build/
+
+# ===== 本地配置与密钥（含真实 API Key，严禁上传） =====
+config.yaml
+*.local.yaml
+.env
+.env.*
+!.env.example
+
+# ===== 运行时数据 =====
+data/
+*.log
+logs/
+
+# ===== 本地工具与 IDE =====
+.ohmyagent/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== 系统文件 =====
+Thumbs.db
+Desktop.ini
+.DS_Store
