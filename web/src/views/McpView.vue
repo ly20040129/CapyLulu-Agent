@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-head">
       <div>
-        <h2><img class="head-icon" src="/lulu/5.png" alt="能力中心" /> 能力中心</h2>
+        <h2><img class="head-icon" src="/images/lulu/5.png" alt="能力中心" /> 能力中心</h2>
         <div class="sub">接入 MCP 服务（stdio / sse / http），AI 即可调度其工具</div>
       </div>
       <button class="btn btn-primary" @click="showAdd = !showAdd">＋ 添加服务</button>
@@ -105,7 +105,7 @@
             <button class="btn btn-ghost btn-sm" @click="toggleServer(s)">{{ s.enabled ? '停用' : '启用' }}</button>
           </div>
           <div class="foot-right">
-            <button class="btn btn-ghost btn-icon btn-sm" @click="removeServer(s)" title="删除"><img class="btn-icon-img" src="/lulu/7.png" alt="删除" /></button>
+            <button class="btn btn-ghost btn-icon btn-sm" @click="removeServer(s)" title="删除"><img class="btn-icon-img" src="/images/lulu/7.png" alt="删除" /></button>
           </div>
         </div>
       </div>

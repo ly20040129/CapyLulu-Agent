@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-head">
       <div>
-        <h2><img class="head-icon" src="/lulu/7.png" alt="工具" /> 工具记录</h2>
+        <h2><img class="head-icon" src="/images/lulu/7.png" alt="工具" /> 工具记录</h2>
         <div class="sub">噜噜最近调用了哪些工具，一目了然</div>
       </div>
       <button class="btn btn-danger" @click="clearLogs">清空记录</button>

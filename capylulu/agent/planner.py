@@ -26,6 +26,40 @@ from .prompts import LEADER_PLANNER_PROMPT
 # 单步执行失败时自动重试的次数（1 次 = 首跑失败后再试一次）
 RETRY_TIMES = 1
 
+# 结果失败语义词表：回复过短且命中这些词 → 判定该步骤实际失败
+_FAIL_WORDS = (
+    "无法", "失败", "没能", "不能", "没有找到", "找不到", "未能", "提取失败",
+    "抱歉", "请尝试", "请提供", "未成功", "做不到", "不行", "没有提取",
+    "没有成功", "不太清楚", "没有做", "没办法",
+)
+
+# 强失败词表：命中即判定失败，不受回复长度限制。
+# 防止「最后调用的工具执行失败 + 超时日志」这类长失败文本被误判为成功，
+# 也防「未实际调用任何工具」「任务未完成」等护栏标记被吞掉。
+_STRONG_FAIL_WORDS = (
+    "任务未完成", "执行失败", "失败信息", "最后调用的工具执行失败",
+    "未实际调用任何工具", "未经真实执行", "下载失败", "已终止",
+    "任务委派失败", "依赖未满足", "已因连续失败被熔断",
+)
+
+
+def looks_failed(result: str | None) -> bool:
+    """判定执行结果是否实质失败（用于 depends / 升级链路的成功判定收紧）。
+
+    - 空结果或超循环哨兵：失败；
+    - 命中强失败词（不限长度）：失败，防止长日志型失败文本被误判成功；
+    - 短回复（<=120 字）且命中弱失败词表：失败，避免把"无法提取/找不到"
+      这类如实汇报误当成成功（否则依赖步骤会在无数据时继续执行导致编造）。
+    - 长回复（有实际产出内容）且仅带个别弱负面词：视为成功。
+    """
+    if not result or result == "(超过最大循环，停下来吃零食了)":
+        return True
+    if any(w in result for w in _STRONG_FAIL_WORDS):
+        return True
+    if len(result) <= 120 and any(w in result for w in _FAIL_WORDS):
+        return True
+    return False
+
 
 class PlannerEngine:
     """规划引擎：负责 chat / direct / plan 三模式决策与执行，并写规划日志。
@@ -186,7 +220,7 @@ class PlannerEngine:
                     result = leader_tools.run_task(task, use_all_tools=True)
                 else:
                     result = worker.run_task(task)
-                if result and result != "(超过最大循环，停下来吃零食了)":
+                if result and not looks_failed(result):
                     return result, True, who
             except Exception:
                 pass
@@ -200,6 +234,7 @@ class PlannerEngine:
         """
         results: list[dict] = []
         completed: set[int] = set()
+        step_results: dict[int, str] = {}
         for i, step in enumerate(steps):
             if not isinstance(step, dict):
                 continue
@@ -207,10 +242,31 @@ class PlannerEngine:
             task = str(step.get("task") or "").strip()
             if not task:
                 task = f"（步骤 {i + 1}）{user_input}"
+            # 步骤结果传递：把 {result:N} 占位符替换为前置步骤的真实执行结果
+            task = re.sub(
+                r"\{result:(\d+)\}",
+                lambda m: step_results.get(int(m.group(1)), "") or "(前置步骤无结果)",
+                task,
+            )
             deps = step.get("depends") or []
             if isinstance(deps, (int, str)):
                 deps = [deps]
             deps = [int(d) for d in deps if isinstance(d, (int, str)) and str(d).isdigit()]
+            if not deps and i > 0:
+                # 未显式声明依赖的步骤默认依赖直接前置步骤：
+                # 防止前置步骤失败后，后续步骤无数据可依仍被执行（编造/写占位符）。
+                deps = [i - 1]
+            # 自动注入依赖步骤的真实执行结果（防止 LLM 未写占位符时后续步骤无数据可依）
+            dep_blocks = [
+                f"【步骤{d}执行结果】\n{step_results[d]}"
+                for d in deps if d in step_results and step_results[d]
+            ]
+            if dep_blocks:
+                task = (
+                    f"{task}\n\n本步骤依赖前置步骤，前置步骤的真实执行结果如下，"
+                    "请基于它完成任务，严禁编造或使用占位内容：\n"
+                    + "\n\n".join(dep_blocks)
+                )
             # 依赖语义：前置步骤未成功完成 → 本步骤跳过并标注「依赖未满足」
             if any(d not in completed for d in deps):
                 results.append({
@@ -221,6 +277,7 @@ class PlannerEngine:
             result, ok, final_who = self._dispatch(who, task, workers, leader_tools)
             if ok:
                 completed.add(i)
+                step_results[i] = result
             results.append({"step": i, "agent": final_who, "ok": ok, "skipped": False, "reply": result})
 
         done = [(r["agent"], r["reply"]) for r in results if r.get("ok")]
@@ -228,9 +285,25 @@ class PlannerEngine:
             # 全部失败（或被依赖跳过）→ 降级：Leader 全量工具兜底整个需求
             fallback_reply = self._fallback(user_input, leader_tools)
             return fallback_reply, results, True
-        return leader_tools.summarize_multi(user_input, done), results, False
+        # 未成功步骤必须透传给汇总层，防止总结时编造其已产出
+        failed_blocks = []
+        for r in results:
+            if r.get("ok"):
+                continue
+            why = r.get("reason") or "执行失败"
+            failed_blocks.append(
+                f"- 步骤{r.get('step') + 1}（{r.get('agent')}，任务见原计划）：{why}"
+            )
+        failed_note = "\n".join(failed_blocks) if failed_blocks else ""
+        return leader_tools.summarize_multi(user_input, done, failed=failed_note), results, False
 
     def _fallback(self, user_input: str, leader_tools) -> str:
-        """降级兜底：Leader 使用全量工具直接处理整个用户需求并汇总。"""
+        """降级兜底：Leader 使用全量工具直接处理整个用户需求并汇总。
+
+        若兜底本身失败（哨兵文本 / 失败语义），直接透传原始失败信息，
+        禁止再交给 summarize 二次总结——否则 LLM 会把失败汇报"美化"成成功。
+        """
         result = leader_tools.run_task(user_input, use_all_tools=True)
+        if looks_failed(result) or "未经真实执行" in result or "最后调用的工具执行失败" in result:
+            return result
         return leader_tools.summarize("总代理", result)

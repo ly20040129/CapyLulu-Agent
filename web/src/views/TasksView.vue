@@ -2,14 +2,14 @@
   <div class="page">
     <div class="page-head">
       <div>
-        <h2><img class="head-icon" src="/lulu/3.png" alt="任务" /> 自动任务</h2>
+        <h2><img class="head-icon" src="/images/lulu/3.png" alt="任务" /> 自动任务</h2>
         <div class="sub">噜噜替你盯着点，到点就干活</div>
       </div>
       <div class="head-right">
         <span class="badge" :class="running ? 'badge-ok' : 'badge-off'">{{ running ? '调度器运行中' : '调度器已停止' }}</span>
         <button class="btn btn-outline" @click="toggleScheduler">
-          <img v-if="running" class="btn-icon-img" src="/lulu/3.png" alt="停止" />
-          <img v-else class="btn-icon-img" src="/lulu/5.png" alt="启动" />
+          <img v-if="running" class="btn-icon-img" src="/images/lulu/3.png" alt="停止" />
+          <img v-else class="btn-icon-img" src="/images/lulu/5.png" alt="启动" />
           {{ running ? '停止' : '启动' }}
         </button>
       </div>
@@ -32,13 +32,13 @@
           <div class="task-text">{{ t.text }}</div>
           <div class="task-meta">{{ t.next || t.describe || '' }}</div>
         </div>
-        <button class="btn btn-ghost btn-icon btn-sm" @click="removeTask(t)" title="删除"><img class="btn-icon-img" src="/lulu/7.png" alt="删除" /></button>
+        <button class="btn btn-ghost btn-icon btn-sm" @click="removeTask(t)" title="删除"><img class="btn-icon-img" src="/images/lulu/7.png" alt="删除" /></button>
       </div>
       <div v-if="!tasks.length" class="empty-tip">还没有自动任务，添加一个试试。</div>
     </div>
 
     <div class="page-head logs-head">
-      <h3><img class="head-icon" src="/lulu/2.png" alt="日志" /> 执行日志</h3>
+      <h3><img class="head-icon" src="/images/lulu/2.png" alt="日志" /> 执行日志</h3>
     </div>
     <div class="capy-section table-card log-card">
       <div v-for="(l, i) in logs" :key="i" class="log-row">

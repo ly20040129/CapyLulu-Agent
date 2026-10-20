@@ -2,15 +2,15 @@
   <div class="page">
     <div class="page-head">
       <div>
-        <h2><img class="head-icon" src="/capy/capy_gif07.gif" alt="IM" /> IM 通道</h2>
+        <h2><img class="head-icon" src="/images/capy/capy_gif07.gif" alt="IM" /> IM 通道</h2>
         <div class="sub">标准机器人 Webhook 与本地接收通道，微信 / QQ 个人号协议不做逆向接入</div>
       </div>
       <div class="head-actions">
         <button class="btn im-btn" @click="refresh" :disabled="busy">
-          <img v-if="busy" class="btn-busy-img" src="/capy/capy_gif04.gif" alt="busy" /> 刷新
+          <img v-if="busy" class="btn-busy-img" src="/images/capy/capy_gif04.gif" alt="busy" /> 刷新
         </button>
         <button class="btn btn-primary im-btn" @click="startAdd">
-          <img class="btn-ico-img" src="/capy/capy_gif01.gif" alt="新增" /> ＋ 新增通道
+          <img class="btn-ico-img" src="/images/capy/capy_gif01.gif" alt="新增" /> ＋ 新增通道
         </button>
       </div>
     </div>
@@ -39,7 +39,7 @@
           <span v-else class="form-hint">httpin 通道无需 Webhook URL，由噜噜本地接收</span>
           <label class="chk"><input type="checkbox" v-model="form.enabled" /> 启用</label>
           <button class="btn btn-primary" @click="submitForm" :disabled="busy">
-            <img v-if="busy" class="btn-busy-img" src="/capy/capy_gif04.gif" alt="busy" /> {{ form.origin ? '保存修改' : '创建' }}
+            <img v-if="busy" class="btn-busy-img" src="/images/capy/capy_gif04.gif" alt="busy" /> {{ form.origin ? '保存修改' : '创建' }}
           </button>
           <button class="btn" @click="editing = false">取消</button>
         </div>
@@ -62,14 +62,14 @@
           <div class="channel-foot">
             <button class="btn btn-mini" @click="startEdit(c)">编辑</button>
             <button class="btn btn-mini btn-primary" @click="sendTest(c)" :disabled="busy">
-              <img v-if="busy" class="btn-busy-img" src="/capy/capy_gif04.gif" alt="busy" /> 发测试
+              <img v-if="busy" class="btn-busy-img" src="/images/capy/capy_gif04.gif" alt="busy" /> 发测试
             </button>
             <button class="btn btn-mini btn-danger" @click="delChannel(c)">删除</button>
           </div>
         </div>
       </div>
       <div v-else class="empty-tip">
-        <img class="empty-img" src="/capy/capy_gif06.gif" alt="空状态" />
+        <img class="empty-img" src="/images/capy/capy_gif06.gif" alt="空状态" />
         <div>还没有通道，点「新增通道」加一个～</div>
       </div>
     </div>
@@ -86,7 +86,7 @@
         </select>
         <input v-model="pushText" class="input grow" placeholder="要推送给噜噜的消息内容" @keyup.enter="pushIncoming" />
         <button class="btn btn-primary" @click="pushIncoming" :disabled="busy || !pushText.trim()">
-          <img v-if="busy" class="btn-busy-img" src="/capy/capy_gif04.gif" alt="busy" /> 推送
+          <img v-if="busy" class="btn-busy-img" src="/images/capy/capy_gif04.gif" alt="busy" /> 推送
         </button>
       </div>
     </div>
@@ -111,7 +111,7 @@
         </div>
       </div>
       <div v-else class="empty-tip">
-        <img class="empty-img" src="/capy/capy_gif05.gif" alt="空状态" />
+        <img class="empty-img" src="/images/capy/capy_gif05.gif" alt="空状态" />
         <div>收件箱空空的，用「模拟推送」发一条试试。</div>
       </div>
     </div>

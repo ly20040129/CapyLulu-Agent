@@ -2,7 +2,7 @@
   <div class="app-shell">
     <!-- 左：导航轨 -->
     <nav class="nav-rail">
-      <div class="rail-logo" title="噜噜 · 佛系桌面助手"><img src="/lulu/1.png" alt="噜噜" class="rail-logo-img" /></div>
+      <div class="rail-logo" title="噜噜 · 佛系桌面助手"><img src="/images/lulu/1.png" alt="噜噜" class="rail-logo-img" /></div>
       <div class="rail-items">
         <button
           v-for="n in navs" :key="n.name"
@@ -15,7 +15,7 @@
         </button>
       </div>
       <div class="rail-sign" title="不许人间见白头">
-        <img class="rail-sign-img" src="/lulu/3.png" alt="署名" />
+        <img class="rail-sign-img" src="/images/lulu/3.png" alt="署名" />
         <span class="rail-sign-text">不许人间见白头</span>
       </div>
       <div class="rail-foot" :title="schedulerText">
@@ -26,7 +26,7 @@
     <!-- 中：平台状态面板（对话页由 ChatView 自带会话列表） -->
     <aside v-if="route.name !== 'chat'" class="side-panel">
       <div class="lulu-logo-card">
-        <div class="lulu-avatar"><img src="/lulu/1.png" alt="噜噜" /></div>
+        <div class="lulu-avatar"><img src="/images/lulu/1.png" alt="噜噜" /></div>
         <div>
           <div class="lulu-name">噜噜</div>
           <div class="lulu-slogan">佛系桌面助手，随缘干活</div>
@@ -35,7 +35,7 @@
 
       <div class="side-actions">
         <button class="btn btn-primary btn-block btn-mascot" @click="callMascot">
-          <img src="/lulu/3.png" alt="噜噜" class="btn-mascot-img" /> 召唤噜噜
+          <img src="/images/lulu/3.png" alt="噜噜" class="btn-mascot-img" /> 召唤噜噜
         </button>
       </div>
 
@@ -61,7 +61,7 @@
       </div>
 
       <div class="capy-section side-tip">
-        <div class="tip-title"><img class="tip-icon" src="/lulu/3.png" alt="噜噜" /> 噜噜小记</div>
+        <div class="tip-title"><img class="tip-icon" src="/images/lulu/3.png" alt="噜噜" /> 噜噜小记</div>
         <div class="tip-text">{{ tip }}</div>
       </div>
     </aside>
@@ -82,16 +82,16 @@ const route = useRoute()
 const router = useRouter()
 
 const navs = [
-  { name: 'chat', label: '对话', icon: '/capy/capy02.png' },
-  { name: 'team', label: '管家团队', icon: '/capy/capy06.png' },
-  { name: 'abilities', label: '技能能力', icon: '/capy/capy08.png' },
-  { name: 'tasks', label: '自动任务', icon: '/capy/capy04.png' },
-  { name: 'memory', label: '用户记忆', icon: '/capy/capy05.png' },
-  { name: 'kb', label: '知识库', icon: '/capy/capy03.png' },
-  { name: 'evolve', label: '自主进化', icon: '/capy/capy01.png' },
-  { name: 'im', label: 'IM 通道', icon: '/capy/capy_gif01.gif' },
-  { name: 'tools', label: '工具记录', icon: '/capy/capy_gif07.gif' },
-  { name: 'settings', label: '模型设置', icon: '/capy/capy07.png' },
+  { name: 'chat', label: '对话', icon: '/images/capy/capy02.png' },
+  { name: 'team', label: '管家团队', icon: '/images/capy/capy06.png' },
+  { name: 'abilities', label: '技能能力', icon: '/images/capy/capy08.png' },
+  { name: 'tasks', label: '自动任务', icon: '/images/capy/capy04.png' },
+  { name: 'memory', label: '用户记忆', icon: '/images/capy/capy05.png' },
+  { name: 'kb', label: '知识库', icon: '/images/capy/capy03.png' },
+  { name: 'evolve', label: '自主进化', icon: '/images/capy/capy01.png' },
+  { name: 'im', label: 'IM 通道', icon: '/images/capy/capy_gif01.gif' },
+  { name: 'tools', label: '工具记录', icon: '/images/capy/capy_gif07.gif' },
+  { name: 'settings', label: '模型设置', icon: '/images/capy/capy07.png' },
 ]
 
 const schedulerRunning = ref(false)

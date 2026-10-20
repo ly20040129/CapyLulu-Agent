@@ -68,7 +68,18 @@ def classify(text: str, pinned: str | None = None) -> str:
         if token in TOOL_OWNER:
             return TOOL_OWNER[token]
     # 关键词规则（顺序即优先级）
+    hits = []
     for who, keys in _RULES:
         if any(k in low for k in keys):
-            return who
+            hits.append(who)
+    uniq: list[str] = []
+    for w in hits:
+        if w not in uniq:
+            uniq.append(w)
+    if len(uniq) >= 2:
+        # 同时命中多个专员领域（如“浏览器提取+文件保存”）→ 跨域复杂任务，
+        # 交由总代理带队拆解，由规划引擎分步派发给各专员协作闭环。
+        return "总代理"
+    if uniq:
+        return uniq[0]
     return "总代理"

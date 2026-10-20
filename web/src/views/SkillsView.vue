@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-head">
       <div>
-        <h2><img class="head-icon" src="/lulu/5.png" alt="技能" /> 技能广场</h2>
+        <h2><img class="head-icon" src="/images/lulu/5.png" alt="技能" /> 技能广场</h2>
         <div class="sub">噜噜掌握的专项技能，即插即用</div>
       </div>
       <button class="btn btn-primary" @click="showAdd = !showAdd">＋ 添加技能</button>
@@ -45,7 +45,7 @@
             <span class="badge">{{ s.source || 'manual' }}</span>
             <span v-if="s.tool" class="badge badge-green" title="AI 可直接调度的运行时工具">已接入 · {{ s.tool }}</span>
           </div>
-          <button class="btn btn-ghost btn-icon btn-sm" @click="removeSkill(s)" title="删除"><img class="btn-icon-img" src="/lulu/7.png" alt="删除" /></button>
+          <button class="btn btn-ghost btn-icon btn-sm" @click="removeSkill(s)" title="删除"><img class="btn-icon-img" src="/images/lulu/7.png" alt="删除" /></button>
         </div>
       </div>
     </div>

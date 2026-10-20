@@ -15,7 +15,7 @@ import re
 import time
 
 from .base import BaseAgent
-from .planner import PlannerEngine
+from .planner import PlannerEngine, looks_failed
 from .prompts import LEADER_PROMPT, LEADER_PLANNER_PROMPT
 
 # 单步执行失败时自动重试的次数（与 planner.RETRY_TIMES 对齐：1 次 = 首跑失败后再试一次）
@@ -24,17 +24,22 @@ _RETRY_TIMES = 1
 
 def match_by_capability(task: str, worker_names: list[str],
                         agents: list[dict] | None = None) -> str | None:
-    """能力匹配路由（纯逻辑，可独立测试）：任务文本命中某 Agent 的 capabilities
+    """能力匹配路由（纯逻辑，可独立测试）：任务主体命中某 Agent 的 capabilities
     标签（子串包含）时返回该 Agent 名；无命中返回 None。
 
     - 只考虑启用的、非总代理的、且在当前 worker 集合中的 Agent；
-    - 按配置顺序优先（先文件管家再电脑管家…），同一任务命中多个时取配置靠前者。
+    - 按配置顺序优先（先文件管家再电脑管家…），同一任务命中多个时取配置靠前者；
+    - 只匹配「任务主体」：planner 注入的依赖块（前置步骤执行结果）必须剔除，
+      否则失败文本里的"文件下载 / 浏览器"等字样会误导路由（如把"关闭浏览器"
+      路由给文件管家）。
     """
     if not worker_names:
         return None
     if agents is None:
         from .. import agents_store
         agents = agents_store.list_agents()
+    # 依赖注入块从"本步骤依赖前置步骤"起，不参与能力匹配
+    body = (task or "").split("本步骤依赖前置步骤")[0]
     for a in agents:
         name = a.get("name") or ""
         if name == "总代理" or name not in worker_names:
@@ -42,7 +47,7 @@ def match_by_capability(task: str, worker_names: list[str],
         if not a.get("enabled", True):
             continue
         caps = a.get("capabilities") or []
-        if any((c or "").strip() and c.strip() in (task or "") for c in caps):
+        if any((c or "").strip() and c.strip() in body for c in caps):
             return name
     return None
 
@@ -160,7 +165,7 @@ class LeaderAgent(BaseAgent):
                     result = workers[agent].run_task(task)
                 else:
                     return None
-                if result and result != "(超过最大循环，停下来吃零食了)":
+                if result and not looks_failed(result):
                     return result
             except Exception:
                 pass
@@ -260,9 +265,19 @@ class LeaderAgent(BaseAgent):
             results = [("总代理", self.run_task(user_input, use_all_tools=True))]
         return self.summarize_multi(user_input, results)
 
-    def summarize_multi(self, user_input: str, results: list[tuple[str, str]]) -> str:
-        """多个专员执行结果统一汇总成给用户的回复（按任务逻辑整合，不编造）。"""
+    def summarize_multi(self, user_input: str, results: list[tuple[str, str]],
+                        failed: str = "") -> str:
+        """多个专员执行结果统一汇总成给用户的回复（按任务逻辑整合，不编造）。
+
+        failed 传入未成功步骤的描述；存在失败步骤时，prompt 明令禁止声称其已完成。
+        """
         blocks = [f"【{who}】\n{reply}" for who, reply in results]
+        fail_note = ""
+        if failed:
+            fail_note = (
+                "\n\n【重要】以下步骤未能成功完成，绝对禁止在回复中声称它们已完成或已产出结果，"
+                "必须如实说明未完成：\n" + failed
+            )
         messages = [
             {"role": "system", "content": LEADER_PROMPT},
             {
@@ -271,6 +286,7 @@ class LeaderAgent(BaseAgent):
                     f"用户需求：{user_input}\n\n"
                     f"已派「{'、'.join(w for w, _ in results)}」协作完成，各专员汇报如下：\n"
                     + "\n\n".join(blocks)
+                    + fail_note
                     + "\n请以噜噜语气整合成一份完整结果给用户：保留关键事实（路径/数字/结论），"
                       "不要编造新事实，不要罗列工具调用细节，按任务逻辑组织。"
                 ),

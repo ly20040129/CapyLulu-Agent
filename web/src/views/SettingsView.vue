@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-head">
       <div>
-        <h2><img class="head-icon" src="/lulu/1.png" alt="设置" /> 模型设置</h2>
+        <h2><img class="head-icon" src="/images/lulu/1.png" alt="设置" /> 模型设置</h2>
         <div class="sub">给噜噜接上大脑，它才能正经干活</div>
       </div>
       <span class="badge" :class="ready ? 'badge-ok' : 'badge-danger'">{{ ready ? '已就绪' : '未配置' }}</span>

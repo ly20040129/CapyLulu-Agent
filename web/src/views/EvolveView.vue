@@ -2,22 +2,22 @@
   <div class="page">
     <div class="page-head">
       <div>
-        <h2><img class="head-icon" src="/capy/capy_gif02.gif" alt="进化" /> 自主进化</h2>
+        <h2><img class="head-icon" src="/images/capy/capy_gif02.gif" alt="进化" /> 自主进化</h2>
         <div class="sub">噜噜从任务台账里反思，把自己越用越顺手</div>
       </div>
       <div class="head-actions">
         <button class="btn evolve-btn" @click="runReflect" :disabled="busy">
-          <img v-if="busy" class="btn-busy-img" src="/capy/capy_gif04.gif" alt="busy" />
-          <img v-else class="btn-ico-img" src="/capy/capy_gif06.gif" alt="反思" />
+          <img v-if="busy" class="btn-busy-img" src="/images/capy/capy_gif04.gif" alt="busy" />
+          <img v-else class="btn-ico-img" src="/images/capy/capy_gif06.gif" alt="反思" />
           {{ busy ? '反思中…' : '触发反思' }}
         </button>
         <button class="btn btn-primary evolve-btn" @click="runImprove" :disabled="busy">
-          <img v-if="busy" class="btn-busy-img" src="/capy/capy_gif04.gif" alt="busy" />
-          <img v-else class="btn-ico-img" src="/capy/capy_gif01.gif" alt="改进" />
+          <img v-if="busy" class="btn-busy-img" src="/images/capy/capy_gif04.gif" alt="busy" />
+          <img v-else class="btn-ico-img" src="/images/capy/capy_gif01.gif" alt="改进" />
           {{ busy ? '改进中…' : '触发改进' }}
         </button>
         <button class="btn evolve-btn" @click="startAdd" :disabled="busy">
-          <img class="btn-ico-img" src="/capy/capy_gif07.gif" alt="加经验" /> ＋ 手动加经验
+          <img class="btn-ico-img" src="/images/capy/capy_gif07.gif" alt="加经验" /> ＋ 手动加经验
         </button>
       </div>
     </div>
@@ -25,35 +25,35 @@
     <!-- 状态卡片 -->
     <div v-if="status" class="stat-cards">
       <div class="stat-card">
-        <img class="stat-ico" src="/capy/capy_gif06.gif" alt="上次触发" />
+        <img class="stat-ico" src="/images/capy/capy_gif06.gif" alt="上次触发" />
         <div class="stat-body">
           <div class="stat-label">上次触发</div>
           <div class="stat-value">{{ status.last_time || '从未' }}</div>
         </div>
       </div>
       <div class="stat-card">
-        <img class="stat-ico" src="/capy/capy05.png" alt="经验库" />
+        <img class="stat-ico" src="/images/capy/capy05.png" alt="经验库" />
         <div class="stat-body">
           <div class="stat-label">经验库</div>
           <div class="stat-value">{{ status.lesson_count }} 条</div>
         </div>
       </div>
       <div class="stat-card">
-        <img class="stat-ico" src="/capy/capy_gif01.gif" alt="已应用" />
+        <img class="stat-ico" src="/images/capy/capy_gif01.gif" alt="已应用" />
         <div class="stat-body">
           <div class="stat-label">已应用</div>
           <div class="stat-value">{{ status.applied_total }} 次</div>
         </div>
       </div>
       <div class="stat-card">
-        <img class="stat-ico" src="/capy/capy_gif02.gif" alt="进化日志" />
+        <img class="stat-ico" src="/images/capy/capy_gif02.gif" alt="进化日志" />
         <div class="stat-body">
           <div class="stat-label">进化日志</div>
           <div class="stat-value">{{ status.log_count }} 条</div>
         </div>
       </div>
       <div class="stat-card">
-        <img class="stat-ico" src="/capy/capy04.png" alt="任务台账" />
+        <img class="stat-ico" src="/images/capy/capy04.png" alt="任务台账" />
         <div class="stat-body">
           <div class="stat-label">任务台账</div>
           <div class="stat-value">{{ status.current_task_count }} 条</div>
@@ -82,7 +82,7 @@
           <input v-model="newTaskRef" class="input grow" placeholder="来源任务（可选）" />
           <input v-model.number="newConfidence" type="number" min="0" max="1" step="0.05" class="input conf-input" placeholder="置信度 0~1" />
           <button class="btn btn-primary" @click="submitAdd" :disabled="busy">
-            <img v-if="busy" class="btn-busy-img" src="/capy/capy_gif04.gif" alt="busy" /> 保存
+            <img v-if="busy" class="btn-busy-img" src="/images/capy/capy_gif04.gif" alt="busy" /> 保存
           </button>
           <button class="btn" @click="adding = false">取消</button>
         </div>
@@ -107,7 +107,7 @@
         </div>
       </div>
       <div v-else class="empty-tip">
-        <img class="empty-img" src="/capy/capy_gif05.gif" alt="空状态" />
+        <img class="empty-img" src="/images/capy/capy_gif05.gif" alt="空状态" />
         <div>经验库还是空的，点「触发反思」从任务台账沉淀经验～</div>
       </div>
     </div>
@@ -137,7 +137,7 @@
           <tbody>
             <tr v-if="!logs.length">
               <td colspan="7" class="tasks-empty">
-                <img class="empty-img" src="/capy/capy_gif05.gif" alt="空状态" />
+                <img class="empty-img" src="/images/capy/capy_gif05.gif" alt="空状态" />
                 <div>暂无进化日志。</div>
               </td>
             </tr>

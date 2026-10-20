@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-head">
       <div>
-        <h2><img class="head-icon" src="/lulu/6.png" alt="记忆" /> 用户记忆</h2>
+        <h2><img class="head-icon" src="/images/lulu/6.png" alt="记忆" /> 用户记忆</h2>
         <div class="sub">噜噜记得住的东西，都在这里</div>
       </div>
       <div class="head-actions">
@@ -24,7 +24,7 @@
           class="row-line" :class="{ active: m.name === currentName }"
           @click="openMemory(m.name)"
         >
-          <img class="mem-icon" src="/lulu/6.png" alt="记忆" />
+          <img class="mem-icon" src="/images/lulu/6.png" alt="记忆" />
           <span class="grow mem-name">{{ m.name }}</span>
           <span class="badge">{{ m.size || '' }}</span>
         </div>
@@ -33,8 +33,8 @@
 
       <section class="mem-editor">
         <div v-if="!currentName && !creating" class="detail-empty">
-          <div class="empty-logo"><img src="/lulu/6.png" alt="记忆" /></div>
-          <div class="detail-scene"><img src="/lulu/scenes/study.png" alt="噜噜看书" /></div>
+          <div class="empty-logo"><img src="/images/lulu/6.png" alt="记忆" /></div>
+          <div class="detail-scene"><img src="/images/lulu/scenes/study.png" alt="噜噜看书" /></div>
           <div class="empty-title">选一条记忆看看</div>
           <div class="empty-sub">噜噜靠这些记住你的偏好与知识</div>
         </div>

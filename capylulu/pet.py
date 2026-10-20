@@ -16,8 +16,10 @@ from pathlib import Path
 import tkinter as tk
 from PIL import Image, ImageTk, ImageDraw
 
-# 图片资产已迁移到 web/public/lulu（原 assets 目录已清理），按候选顺序取第一个存在的目录
+# 图片资产已迁移到 web/public/images/lulu（原 web/public/lulu 已清理），
+# 按候选顺序取第一个存在的目录：images/lulu 优先，兼容旧 web/public/lulu 与根 assets
 _ASSET_CANDIDATES = (
+    Path(__file__).resolve().parent.parent / "web" / "public" / "images" / "lulu",
     Path(__file__).resolve().parent.parent / "web" / "public" / "lulu",
     Path(__file__).resolve().parent.parent / "assets",
 )

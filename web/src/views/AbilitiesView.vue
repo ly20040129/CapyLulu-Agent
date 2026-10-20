@@ -2,17 +2,17 @@
   <div class="page">
     <div class="page-head">
       <div>
-        <h2><img class="head-icon" src="/capy/capy04.png" alt="技能能力" /> 技能能力</h2>
+        <h2><img class="head-icon" src="/images/capy/capy04.png" alt="技能能力" /> 技能能力</h2>
         <div class="sub">技能广场 + 能力中心，噜噜的即插即用本领与 MCP 服务一站管理</div>
       </div>
     </div>
 
     <div class="tab-bar">
       <button class="tab-btn" :class="{ active: activeTab === 'skills' }" @click="activeTab = 'skills'">
-        <img class="tab-icon" src="/capy/capy08.png" alt="技能" /> 技能广场
+        <img class="tab-icon" src="/images/capy/capy08.png" alt="技能" /> 技能广场
       </button>
       <button class="tab-btn" :class="{ active: activeTab === 'mcp' }" @click="activeTab = 'mcp'">
-        <img class="tab-icon" src="/capy/capy04.png" alt="能力" /> 能力中心
+        <img class="tab-icon" src="/images/capy/capy04.png" alt="能力" /> 能力中心
       </button>
     </div>
 
@@ -60,12 +60,12 @@
               <span class="badge">{{ s.source || 'manual' }}</span>
               <span v-if="s.tool" class="badge badge-green" title="AI 可直接调度的运行时工具">已接入 · {{ s.tool }}</span>
             </div>
-            <button class="btn btn-ghost btn-icon btn-sm" @click="removeSkill(s)" title="删除"><img class="btn-icon-img" src="/lulu/7.png" alt="删除" /></button>
+            <button class="btn btn-ghost btn-icon btn-sm" @click="removeSkill(s)" title="删除"><img class="btn-icon-img" src="/images/lulu/7.png" alt="删除" /></button>
           </div>
         </div>
       </div>
       <div v-if="!skills.length" class="empty-tip">
-        <img class="empty-img" src="/capy/capy_gif05.gif" alt="空状态" />
+        <img class="empty-img" src="/images/capy/capy_gif05.gif" alt="空状态" />
         <div>还没有技能，点右上角添加一个吧。</div>
       </div>
 
@@ -115,7 +115,7 @@
           </div>
         </div>
         <div v-else class="empty-tip">
-          <img class="empty-img" src="/capy/capy_gif03.gif" alt="空状态" />
+          <img class="empty-img" src="/images/capy/capy_gif03.gif" alt="空状态" />
           <div>还没有 SKILL.md，点「创建技能」生成一个吧。</div>
         </div>
       </div>
@@ -225,13 +225,13 @@
               <button class="btn btn-ghost btn-sm" @click="toggleServer(s)">{{ s.enabled ? '停用' : '启用' }}</button>
             </div>
             <div class="foot-right">
-              <button class="btn btn-ghost btn-icon btn-sm" @click="removeServer(s)" title="删除"><img class="btn-icon-img" src="/lulu/7.png" alt="删除" /></button>
+              <button class="btn btn-ghost btn-icon btn-sm" @click="removeServer(s)" title="删除"><img class="btn-icon-img" src="/images/lulu/7.png" alt="删除" /></button>
             </div>
           </div>
         </div>
       </div>
       <div v-if="!servers.length" class="empty-tip">
-        <img class="empty-img" src="/capy/capy_gif06.gif" alt="空状态" />
+        <img class="empty-img" src="/images/capy/capy_gif06.gif" alt="空状态" />
         <div>
           还没有接入任何 MCP 服务。点右上角「添加服务」，填入命令或地址即可接入，例如
           <code>{"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "D:/"]}</code>

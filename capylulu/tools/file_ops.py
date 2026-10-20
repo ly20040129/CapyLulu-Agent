@@ -45,8 +45,31 @@ def read_file(path: str) -> str:
     risk="medium",
 )
 def write_file(path: str, content: str) -> str:
-    """覆盖写入，自动建父目录。"""
+    """覆盖写入，自动建父目录。内容含明显占位符（编号式/占位式）时拒绝写入，
+    防止 Agent 把编造内容当成真实结果落盘。"""
+    import re
+
     p = Path(path)
+    stripped = content.strip()
+    if len(stripped) < 10:
+        return (
+            "拒绝写入：content 过短（疑似工具调用残片/无意义内容）。"
+            "必须写入有意义的真实数据；没有真实数据时不要调用本工具，直接如实汇报。"
+        )
+    placeholder = re.compile(
+        r"(新闻标题|标题|内容|正文|提取到的[^，。\n]{0,10}标题|占位|示例文本)([0-9０-９]|\s*\d|$)"
+    )
+    if placeholder.search(stripped):
+        return (
+            "拒绝写入：content 疑似占位符/编造内容"
+            f"（命中模式：{placeholder.search(content.strip()).group(0)!r}）。"
+            "必须写入真实数据；没有真实数据时不要调用本工具，直接如实汇报未取得数据。"
+        )
+    if any(k in stripped for k in ("本步骤依赖前置步骤", "前置步骤的真实执行结果", "【步骤", "步骤执行结果】")):
+        return (
+            "拒绝写入：content 是任务上下文注入文本（前置步骤说明），不是本步骤应保存的真实数据。"
+            "请只写入从真实执行中提取到的目标内容；没有目标内容时不要调用本工具，直接如实汇报。"
+        )
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(content, encoding="utf-8")
     return f"已写入 {len(content)} 字符到 {path}"

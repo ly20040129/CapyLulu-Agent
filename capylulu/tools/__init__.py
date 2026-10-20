@@ -13,3 +13,6 @@ from . import window_ops  # noqa: F401
 from . import process_ops  # noqa: F401
 from . import media_ops  # noqa: F401
 from . import input_ops  # noqa: F401
+from . import browser_ops  # noqa: F401
+from . import data_ops  # noqa: F401
+from . import gui_ops  # noqa: F401

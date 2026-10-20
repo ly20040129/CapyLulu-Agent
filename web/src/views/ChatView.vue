@@ -14,13 +14,13 @@
           <div class="hist-title">{{ s.title }}</div>
           <div class="hist-meta">{{ s.count }} 条 · {{ shortTime(s.created) }}</div>
           <div class="hist-menu" @click.stop>
-            <button class="btn btn-ghost btn-icon btn-sm" @click="renamePrompt(s)" title="重命名"><img class="btn-icon-img" src="/lulu/6.png" alt="重命名" /></button>
-            <button class="btn btn-ghost btn-icon btn-sm danger" @click="askDelete(s)" title="删除"><img class="btn-icon-img" src="/lulu/7.png" alt="删除" /></button>
+            <button class="btn btn-ghost btn-icon btn-sm" @click="renamePrompt(s)" title="重命名"><img class="btn-icon-img" src="/images/lulu/6.png" alt="重命名" /></button>
+            <button class="btn btn-ghost btn-icon btn-sm danger" @click="askDelete(s)" title="删除"><img class="btn-icon-img" src="/images/lulu/7.png" alt="删除" /></button>
           </div>
         </div>
       </div>
       <div class="hist-foot">
-        <button class="btn btn-secondary btn-block btn-mascot" @click="callMascot"><img src="/lulu/3.png" alt="噜噜" class="btn-mascot-img" /> 召唤噜噜</button>
+        <button class="btn btn-secondary btn-block btn-mascot" @click="callMascot"><img src="/images/lulu/3.png" alt="噜噜" class="btn-mascot-img" /> 召唤噜噜</button>
       </div>
     </aside>
 
@@ -28,8 +28,8 @@
     <section class="chat-main">
       <div class="chat-scroll" ref="scrollRef">
         <div v-if="!messages.length" class="chat-empty">
-          <div class="empty-logo"><img src="/lulu/1.png" alt="噜噜" /></div>
-          <div class="empty-scene"><img src="/lulu/scenes/dino.png" alt="噜噜的日常" /></div>
+          <div class="empty-logo"><img src="/images/lulu/1.png" alt="噜噜" /></div>
+          <div class="empty-scene"><img src="/images/lulu/scenes/dino.png" alt="噜噜的日常" /></div>
           <div class="empty-title">噜噜 · 佛系桌面助手</div>
           <div class="empty-sub">有事说事，没事喝茶。我在旁边摸鱼待命。</div>
           <div class="empty-hints">
@@ -39,13 +39,13 @@
 
         <template v-else>
           <div v-for="(m, i) in messages" :key="i" class="msg-row" :class="m.role">
-            <div class="msg-avatar"><img v-if="m.role === 'user'" src="/lulu/2.png" alt="我" class="avatar-img" /><img v-else src="/lulu/4.png" alt="噜噜" class="avatar-img" /></div>
+            <div class="msg-avatar"><img v-if="m.role === 'user'" src="/images/lulu/2.png" alt="我" class="avatar-img" /><img v-else src="/images/lulu/4.png" alt="噜噜" class="avatar-img" /></div>
             <div class="msg-bubble" v-html="renderMessage(m.content)"></div>
           </div>
         </template>
 
         <div v-if="sending" class="msg-row assistant">
-          <div class="msg-avatar"><img src="/lulu/4.png" alt="噜噜" class="avatar-img" /></div>
+          <div class="msg-avatar"><img src="/images/lulu/4.png" alt="噜噜" class="avatar-img" /></div>
           <div class="llu-loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
         </div>
       </div>
@@ -108,7 +108,8 @@ function escapeHtml(s) {
 
 function renderMessage(content) {
   const esc = escapeHtml(content)
-  return esc.replace(
+  // 1) 消息中的 /files/ 下载链接 → 下载卡片（send_file 通道）
+  let html = esc.replace(
     /(https?:\/\/[^\s"'<>（）()]+?\/files\/[^\s"'<>（）()]+)|(\/files\/[^\s"'<>（）()]+)/g,
     (m) => {
       const href = m.startsWith('/') ? window.location.origin + m : m
@@ -117,6 +118,17 @@ function renderMessage(content) {
       return `<a class="file-download-card" href="${escapeHtml(href)}" download="${safeName}" title="点击下载 ${safeName}"><span class="file-card-icon"></span><span class="file-card-name">${safeName}</span><span class="file-card-btn">下载</span></a>`
     }
   )
+  // 2) 磁盘绝对路径（E:\... 或 E:/...）→ 下载卡片（经 /api/files/download 受控下载）
+  html = html.replace(
+    /([A-Za-z]:[\\/][^\s"'<>（）()]+)/g,
+    (m) => {
+      const href = window.location.origin + '/api/files/download?path=' + encodeURIComponent(m)
+      const fileName = m.split(/[\\/]/).pop() || '文件'
+      const safeName = escapeHtml(fileName)
+      return `<a class="file-download-card" href="${escapeHtml(href)}" title="点击下载 ${safeName}"><span class="file-card-icon"></span><span class="file-card-name">${safeName}</span><span class="file-card-btn">下载</span></a>`
+    }
+  )
+  return html
 }
 
 async function loadSessions() {

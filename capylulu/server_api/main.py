@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -40,10 +40,10 @@ def health() -> dict:
     return {"ok": True, "name": "capylulu-vue", "api": "2.0.0"}
 
 
-# 噜噜形象资源：根目录 assets/（1.png~7.png），前端通过 /lulu/*.png 访问
-lulu_dir = PROJECT_ROOT / "assets"
-if lulu_dir.is_dir():
-    app.mount("/lulu", StaticFiles(directory=str(lulu_dir), check_dir=False), name="lulu")
+# 噜噜形象资源：统一放在 web/public/images/（images/lulu、images/capy 两个子目录），前端通过 /images/*.png 访问
+images_dir = PROJECT_ROOT / "web" / "public" / "images"
+if images_dir.is_dir():
+    app.mount("/images", StaticFiles(directory=str(images_dir), check_dir=False), name="images")
 
 
 # 文件发送目录：静态托管 data/send_files，供 send_file 工具生成的 /files/ 下载链接访问。
@@ -51,6 +51,21 @@ if lulu_dir.is_dir():
 send_dir = PROJECT_ROOT / "data" / "send_files"
 send_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/files", StaticFiles(directory=str(send_dir), check_dir=False), name="files")
+
+
+# 通用下载路由：把聊天回复中的磁盘绝对路径（如 E:\capylulu\data\downloads\xxx.txt）
+# 映射为可点击下载链接。安全约束：仅允许 data/ 目录内的文件，防止任意文件泄露。
+@app.get("/api/files/download")
+def download_file(path: str = Query(...)) -> FileResponse:
+    data_dir = (PROJECT_ROOT / "data").resolve()
+    target = Path(path).expanduser().resolve()
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    try:
+        target.relative_to(data_dir)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="仅允许访问 data 目录下的文件")
+    return FileResponse(target, filename=target.name)
 
 
 # 生产模式：托管 Vue 构建产物（须放在所有 API 路由之后，避免吞掉 /api/*）

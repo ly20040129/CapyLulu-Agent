@@ -3,12 +3,12 @@
     <!-- 顶栏 -->
     <div class="page-head team-head">
       <div>
-        <h2><img class="head-icon" src="/capy/capy06.png" alt="团队" /> 管家团队</h2>
+        <h2><img class="head-icon" src="/images/capy/capy06.png" alt="团队" /> 管家团队</h2>
         <div class="sub">分工明确的噜噜管家们，随时听你调度</div>
       </div>
       <div class="head-actions">
-        <button class="btn btn-outline" @click="reloadAgents"><img class="btn-icon-img" src="/capy/capy_gif07.gif" alt="重载" /> 重载路由</button>
-        <button class="btn btn-primary" @click="startCreate"><img class="btn-icon-img" src="/capy/capy_gif01.gif" alt="新增" /> 新增管家</button>
+        <button class="btn btn-outline" @click="reloadAgents"><img class="btn-icon-img" src="/images/capy/capy_gif07.gif" alt="重载" /> 重载路由</button>
+        <button class="btn btn-primary" @click="startCreate"><img class="btn-icon-img" src="/images/capy/capy_gif01.gif" alt="新增" /> 新增管家</button>
       </div>
     </div>
 
@@ -32,7 +32,7 @@
       <!-- 右：详情 / 新增 -->
       <section class="team-detail">
         <div v-if="!selected && !creating" class="detail-empty">
-          <div class="empty-logo"><img src="/capy/capy_gif06.gif" alt="团队" /></div>
+          <div class="empty-logo"><img src="/images/capy/capy_gif06.gif" alt="团队" /></div>
           <div class="empty-title">选一位管家看看</div>
           <div class="empty-sub">点左侧卡片查看职责与配置，或直接新增一位管家</div>
         </div>
@@ -64,7 +64,7 @@
           <div class="row-fields">
             <div class="field">
               <label>头像图标（路径或 URL）</label>
-              <input v-model="form.icon" class="input" placeholder="/lulu/6.png" />
+              <input v-model="form.icon" class="input" placeholder="/images/lulu/6.png" />
             </div>
             <div class="field">
               <label>关键词（逗号分隔）</label>
@@ -101,7 +101,7 @@
     <div class="capy-panel tasks-panel">
       <div class="tasks-head">
         <div>
-          <h3><img class="head-icon" src="/capy/capy04.png" alt="台账" /> 任务台账</h3>
+          <h3><img class="head-icon" src="/images/capy/capy04.png" alt="台账" /> 任务台账</h3>
           <div class="sub">每次委派留痕：时间 / 任务 / 负责管家 / 状态 / 结果 / 耗时，供复盘与记忆蒸馏</div>
         </div>
         <div class="tasks-actions">
@@ -136,7 +136,7 @@
           <tbody>
             <tr v-if="!tasks.length">
               <td colspan="6" class="tasks-empty">
-                <img class="empty-img" src="/capy/capy_gif05.gif" alt="空状态" />
+                <img class="empty-img" src="/images/capy/capy_gif05.gif" alt="空状态" />
                 <div>暂无任务台账，去上方「委派测试」试一发～</div>
               </td>
             </tr>

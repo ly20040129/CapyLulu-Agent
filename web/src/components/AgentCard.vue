@@ -13,7 +13,7 @@
       <span v-for="c in caps" :key="c" class="cap-tag">{{ c }}</span>
     </div>
     <div class="card-foot">
-      <span class="badge badge-yellow"><img class="tag-icon" src="/lulu/7.png" alt="工具" /> {{ toolsLabel }}</span>
+      <span class="badge badge-yellow"><img class="tag-icon" src="/images/lulu/7.png" alt="工具" /> {{ toolsLabel }}</span>
       <span class="badge">{{ kwLabel }}</span>
     </div>
   </div>
@@ -40,9 +40,9 @@ defineEmits(['select'])
 const avatar = computed(() => {
   const custom = asStr(props.icon).trim()
   if (custom && (custom.startsWith('/') || custom.startsWith('http'))) return custom
-  const map = { '文件': '/lulu/6.png', '搜索': '/lulu/7.png', '代码': '/lulu/1.png', '办公': '/lulu/3.png', '团队': '/lulu/2.png', '主管': '/lulu/4.png', '客服': '/lulu/5.png' }
+  const map = { '文件': '/images/lulu/6.png', '搜索': '/images/lulu/7.png', '代码': '/images/lulu/1.png', '办公': '/images/lulu/3.png', '团队': '/images/lulu/2.png', '主管': '/images/lulu/4.png', '客服': '/images/lulu/5.png' }
   for (const k of Object.keys(map)) if (props.role.includes(k)) return map[k]
-  return '/lulu/1.png'
+  return '/images/lulu/1.png'
 })
 const asStr = (v) => {
   if (Array.isArray(v)) return v.join(', ')
