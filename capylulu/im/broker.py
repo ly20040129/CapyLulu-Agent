@@ -130,7 +130,12 @@ class Broker:
             if name not in self._channels:
                 return {"ok": False, "message": f"通道「{name}」不存在"}
             new_item = self._channels[name].to_dict()
-            new_item.update({k: v for k, v in item.items() if v is not None})
+            for k, v in item.items():
+                if v is None:
+                    continue
+                if k == "secret" and not str(v).strip():
+                    continue  # secret 留空 = 保持不变（防止前端编辑把已存密钥误清）
+                new_item[k] = v
             ch = create_channel(new_item)
             if ch is None:
                 return {"ok": False, "message": "通道配置无效"}

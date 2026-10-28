@@ -6,9 +6,12 @@ import time
 import uuid
 from pathlib import Path
 
+from loguru import logger
+
 from .config import config
 
-STORE = config.data_dir / "sessions.json"
+STORE = config.data_dir / "sessions.json"  # 会话历史文件
+DATA_DIR = STORE.parent  # 会话数据目录
 
 
 def refresh_paths() -> None:
@@ -24,6 +27,7 @@ def _load() -> list[dict]:
     try:
         return json.loads(STORE.read_text(encoding="utf-8")) or []
     except json.JSONDecodeError:
+        logger.warning(f"[History] 会话历史文件损坏，返回空列表：{STORE}")
         return []
 
 
@@ -54,9 +58,6 @@ def title_of_id(sess_id: str) -> str:
     return "新对话"
 
 
-DATA_DIR = STORE.parent
-
-
 def _title_of(s: dict) -> str:
     t = (s.get("title") or "").strip()
     return t[:28] if t else "新对话"
@@ -81,7 +82,7 @@ def _clean_text(content) -> str:
     return str(content)
 
 
-def normalize_messages(messages) -> list:
+def normalize_messages(messages) -> list[dict]:
     """清洗消息列表：只保留合法 dict 且 content 非空；content 统一为字符串。
 
     关键：Gradio Chatbot 组件值可能携带结构化 content（list/dict），
@@ -137,6 +138,7 @@ def create_session() -> dict:
     sessions = _load()
     sessions.insert(0, sess)
     _save(sessions)
+    logger.info(f"[History] 已创建会话：{sess['id']}")
     return sess
 
 
@@ -162,6 +164,7 @@ def upsert(sess_id: str, messages: list, title: str | None = None) -> None:
         })
     sessions.sort(key=lambda x: x.get("updated", 0), reverse=True)
     _save(sessions[:50])  # 最多留 50 个会话
+    logger.info(f"[History] 已保存会话：{sess_id}（{len(messages)} 条消息）")
 
 
 def id_of_choice(choice: str) -> str | None:
@@ -182,6 +185,7 @@ def delete_session(sess_id: str) -> bool:
     if len(remained) == len(sessions):
         return False
     _save(remained)
+    logger.info(f"[History] 已删除会话：{sess_id}")
     return True
 
 
@@ -227,4 +231,5 @@ def rename_by_id(sess_id: str, new_title: str) -> bool:
     else:
         return False
     _save(sessions)
+    logger.info(f"[History] 已重命名会话：{sess_id} -> {new_title}")
     return True

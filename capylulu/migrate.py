@@ -8,6 +8,8 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+from loguru import logger
+
 from .config import PROJECT_ROOT, config
 
 # 需随 data_dir 迁移的数据（文件或目录）
@@ -37,13 +39,16 @@ def migrate_data_dir(new_dir: str) -> tuple[str, bool]:
     """迁移数据到新目录，返回 (消息, 是否成功)。"""
     target = _resolve(new_dir)
     if target is None:
+        logger.error("[Migrate] 数据目录不能为空")
         return "数据目录不能为空", False
     old = config.data_dir
     if target == old:
+        logger.info(f"[Migrate] 新目录与当前一致（{old}），无需迁移")
         return f"新目录与当前一致（{old}），无需迁移", False
     try:
         target.mkdir(parents=True, exist_ok=True)
     except Exception as exc:  # noqa: BLE001
+        logger.error(f"[Migrate] 创建目标目录失败：{exc}")
         return f"创建目标目录失败：{exc}", False
 
     moved: list[str] = []
@@ -65,6 +70,7 @@ def migrate_data_dir(new_dir: str) -> tuple[str, bool]:
             moved.append(name)
         except Exception as exc:  # noqa: BLE001
             skipped.append(f"{name}（复制失败：{exc}）")
+            logger.error(f"[Migrate] 迁移 {name} 失败：{exc}")
 
     cfg_msg = config.update_data_dir(str(target))
     # 刷新各存储模块路径常量
@@ -74,7 +80,9 @@ def migrate_data_dir(new_dir: str) -> tuple[str, bool]:
         mod.refresh_paths()
 
     if cfg_msg != str(target):
+        logger.error(f"[Migrate] 数据已迁移但配置写回失败：{cfg_msg}")
         return f"⚠️ 数据已迁移到 {target}，但配置写回失败：{cfg_msg}", False
+    logger.info(f"[Migrate] 数据目录已迁移到：{target}")
     detail = (
         f"已迁移：{', '.join(moved) if moved else '无'}\n"
         f"跳过：{', '.join(skipped) if skipped else '无'}"

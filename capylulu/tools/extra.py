@@ -131,23 +131,19 @@ _APP_ALIASES = {
     "设置": "ms-settings",
 }
 
-_KNOWN_APPS = "、".join(sorted({k for k in _APP_ALIASES if not k.isascii()}))
-# 避免枚举与个别英文别名重复展示
-
 
 @tool(
     name="launch_common_app",
     description=(
-        "打开本机常用 Windows 应用（记事本/计算器/画图/截图工具/录音机/照片/资源管理器/终端/设置等），"
-        f"支持：{_KNOWN_APPS}。仅启动应用，不修改系统设置。"
+        "打开本机 Windows 应用。内置常用应用（记事本/计算器/画图/截图工具/录音机/照片/资源管理器/终端/设置等），"
+        "也支持任意已安装的第三方软件（如 钉钉、微信、QQ、浏览器）。仅启动应用，不修改系统设置。"
     ),
     parameters={
         "type": "object",
         "properties": {
             "name": {
                 "type": "string",
-                "description": "应用名称，如 记事本、计算器、画图、截图工具、录音机、照片、资源管理器、终端",
-                "enum": sorted({k for k in _APP_ALIASES if not k.isascii()}),
+                "description": "应用名称，如 记事本、计算器、画图、截图工具、录音机、照片、资源管理器、终端、设置、钉钉、微信、QQ",
             }
         },
         "required": ["name"],
@@ -155,19 +151,22 @@ _KNOWN_APPS = "、".join(sorted({k for k in _APP_ALIASES if not k.isascii()}))
     risk="medium",
 )
 def launch_common_app(name: str = "") -> str:
-    key = (name or "").strip().lower()
-    target = _APP_ALIASES.get(name, "") or _APP_ALIASES.get(key, "")
-    if not target:
-        return f"暂不支持打开「{name}」，支持：{_KNOWN_APPS}。"
-    try:
-        if target.startswith("ms-"):
-            # UWP 协议：ms-call: / ms-photos: / ms-settings:
-            subprocess.Popen(["cmd", "/c", "start", "", f"{target}:"], shell=False)
-        else:
-            os.startfile(target)  # noqa: S606 仅启动白名单内置应用
-        return f"✓ 已打开 {name}（{target}）。"
-    except Exception as exc:  # noqa: BLE001
-        return f"打开 {name} 失败：{exc}"
+    key = (name or "").strip()
+    target = _APP_ALIASES.get(key, "") or _APP_ALIASES.get(key.lower(), "")
+    if target:
+        try:
+            if target.startswith("ms-"):
+                # UWP 协议：ms-call: / ms-photos: / ms-settings:
+                subprocess.Popen(["cmd", "/c", "start", "", f"{target}:"], shell=False)
+            else:
+                os.startfile(target)  # noqa: S606 仅启动白名单内置应用
+            return f"✓ 已打开 {key}（{target}）。"
+        except Exception as exc:  # noqa: BLE001
+            return f"打开 {key} 失败：{exc}"
+    # 未命中白名单：回退通用启动（开始菜单快捷方式 / start 命令），支持任意已安装应用
+    from .desktop import _launch_installed_app
+
+    return _launch_installed_app(key)
 
 
 # ---------------- 用户记忆 ----------------

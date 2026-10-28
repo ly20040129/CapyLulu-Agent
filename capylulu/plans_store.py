@@ -11,9 +11,11 @@ import json
 import time
 from pathlib import Path
 
+from loguru import logger
+
 from .config import config
 
-STORE = config.data_dir / "plans.json"
+STORE = config.data_dir / "plans.json"  # 规划记录文件
 
 MAX_RECORDS = 200  # 日志上限，超出丢弃最旧记录，避免无限膨胀
 
@@ -33,7 +35,7 @@ def _load() -> list[dict]:
         if isinstance(data, list):
             return data
     except (json.JSONDecodeError, TypeError):
-        pass
+        logger.warning(f"[Plans] 规划记录损坏，返回空列表：{STORE}")
     return []
 
 
@@ -58,6 +60,7 @@ def append_plan(record: dict) -> None:
     if len(items) > MAX_RECORDS:
         items = items[-MAX_RECORDS:]
     _save(items)
+    logger.info(f"[Plans] 已追加规划记录：ts={record.get('ts', '?')} input={record.get('input', '')[:40]}")
 
 
 def load_plans() -> list[dict]:

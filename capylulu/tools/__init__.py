@@ -5,6 +5,7 @@ from . import extra  # noqa: F401
 from . import assistant  # noqa: F401
 from . import skill_tools  # noqa: F401
 from . import skill_md_tools  # noqa: F401
+from . import skill_market  # noqa: F401
 from . import mcp_tools  # noqa: F401
 from . import memory_tools  # noqa: F401
 from . import kb_tools  # noqa: F401
@@ -16,3 +17,4 @@ from . import input_ops  # noqa: F401
 from . import browser_ops  # noqa: F401
 from . import data_ops  # noqa: F401
 from . import gui_ops  # noqa: F401
+from . import weather_ops  # noqa: F401

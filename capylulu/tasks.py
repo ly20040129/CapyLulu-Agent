@@ -20,6 +20,8 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from loguru import logger
+
 from .config import config
 
 WEEKDAY_NAMES = {
@@ -42,9 +44,9 @@ def _data_dir() -> Path:
     return config.data_dir
 
 
-STORE = _data_dir() / "tasks.json"
-LOG_STORE = _data_dir() / "task_logs.json"
-NOTES_DIR = _data_dir() / "notes"
+STORE = _data_dir() / "tasks.json"          # 任务清单文件
+LOG_STORE = _data_dir() / "task_logs.json"  # 任务执行记录文件
+NOTES_DIR = _data_dir() / "notes"           # 便签目录
 
 
 def refresh_paths() -> None:
@@ -148,12 +150,15 @@ def load() -> list[dict]:
     try:
         return json.loads(STORE.read_text(encoding="utf-8")) or []
     except json.JSONDecodeError:
+        logger.warning(f"[Tasks] 任务文件损坏，返回空清单：{STORE}")
         return []
 
 
 def save(items: list[dict]) -> None:
+    """写回任务清单文件。"""
     STORE.parent.mkdir(parents=True, exist_ok=True)
     STORE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info(f"[Tasks] 已保存任务清单：{len(items)} 条 -> {STORE}")
 
 
 def add(text: str) -> str:
@@ -195,6 +200,32 @@ def remove_by_text(text: str) -> str:
     return _fmt()
 
 
+def update_by_text(old_text: str, new_text: str) -> str:
+    """按原文本更新任务（首次匹配）：重新解析新文本的调度字段，保留 enabled/created。"""
+    old_text = (old_text or "").strip()
+    new_text = (new_text or "").strip()
+    if not old_text or not new_text:
+        return _fmt()
+    items = load()
+    for item in items:
+        if item.get("text") == old_text:
+            item["text"] = new_text
+            parsed = parse_task(new_text)
+            if parsed:
+                item.update(parsed)
+                nxt = next_trigger(item)
+                item["next"] = nxt.strftime("%Y-%m-%d %H:%M") if nxt else ""
+            else:
+                item["kind"] = "manual"
+                item["weekday"] = None
+                item["time"] = ""
+                item["next"] = ""
+            save(items)
+            logger.info(f"[Tasks] 已更新任务：{old_text} -> {new_text}")
+            break
+    return _fmt()
+
+
 def set_enabled(text: str, enabled: bool) -> str:
     """切换任务启停（按文本匹配，首次命中）。"""
     text = (text or "").strip()
@@ -217,17 +248,36 @@ def choices() -> list[str]:
     return [i.get("text", "") for i in load()]
 
 
+def is_auto(item: dict) -> bool:
+    """自动任务判定：含 module+func 的脚本任务、steps 多步脚本任务、或 mode=agentic+goal 的智能体任务均属自动任务；旧 text 便签走旧逻辑。"""
+    if not item:
+        return False
+    if item.get("module") and item.get("func"):
+        return True
+    if isinstance(item.get("steps"), list) and item.get("steps"):
+        return True
+    return bool(item.get("mode") == "agentic" and (item.get("goal") or "").strip())
+
+
 def rows() -> list[list]:
-    """自动任务页 Dataframe：任务 / 类型 / 下次触发 / 状态。"""
-    return [
-        [
-            i.get("text", ""),
-            _describe(i),
-            (i.get("next") or "—"),
-            "✅ 启用" if i.get("enabled", True) else "⛔ 停用",
-        ]
-        for i in load()
-    ]
+    """任务页 Dataframe：任务 / 类型 / 下次触发 / 状态；自动任务展示 name/cron/next/enabled。"""
+    rows_out = []
+    for i in load():
+        if is_auto(i):
+            rows_out.append([
+                i.get("name", ""),
+                i.get("cron", ""),
+                (i.get("next") or "—"),
+                "✅ 启用" if i.get("enabled", True) else "⛔ 停用",
+            ])
+        else:
+            rows_out.append([
+                i.get("text", ""),
+                _describe(i),
+                (i.get("next") or "—"),
+                "✅ 启用" if i.get("enabled", True) else "⛔ 停用",
+            ])
+    return rows_out
 
 
 def _fmt() -> str:
@@ -250,6 +300,7 @@ def load_logs() -> list[dict]:
     try:
         return json.loads(LOG_STORE.read_text(encoding="utf-8")) or []
     except json.JSONDecodeError:
+        logger.warning(f"[Tasks] 执行记录文件损坏，返回空记录：{LOG_STORE}")
         return []
 
 
@@ -278,6 +329,7 @@ def log_event_raw(text: str, ts: str, result: str = "", note: str = "") -> str:
         entry["note"] = str(note)
     logs.insert(0, entry)
     save_logs(logs[:200])  # 最多留 200 条
+    logger.info(f"[Tasks] 已记录执行：{text}")
     return _fmt_logs()
 
 

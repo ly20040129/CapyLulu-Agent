@@ -7,6 +7,31 @@ from .registry import tool
 
 
 @tool(
+    name="kb_list",
+    description="列出全部知识库及其文档清单（库名、文档数量、每篇文档文件名），用于回答「知识库里有什么」。本工具不需要任何参数，不要传 name/kb 等参数。",
+    parameters={
+        "type": "object",
+        "properties": {},
+    },
+    risk="low",
+)
+def kb_list() -> str:
+    """列出全部知识库与各库文档清单。"""
+    try:
+        kbs = kb_store.list_kbs()
+        if not kbs:
+            return "暂无知识库。可用 kb_create 新建知识库后导入文档。"
+        lines = [f"共 {len(kbs)} 个知识库："]
+        for kb in kbs:
+            lines.append(f"- {kb['name']}（文档 {kb['doc_count']} 篇 / 文本块 {kb['chunk_count']}，更新于 {kb['updated_at']}）")
+            for doc in kb_store.list_docs(kb["name"]):
+                lines.append(f"  * {doc['name']}（{doc['chunk_count']} 块，导入于 {doc['imported_at']}）")
+        return "\n".join(lines)
+    except Exception as exc:  # noqa: BLE001
+        return f"知识库列表失败：{exc}"
+
+
+@tool(
     name="kb_create",
     description="新建本地知识库（data/kb/<库名>/）。用于把一批资料沉淀为可检索问答的库。",
     parameters={

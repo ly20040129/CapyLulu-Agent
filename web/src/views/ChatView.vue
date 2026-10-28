@@ -108,13 +108,16 @@ function escapeHtml(s) {
 
 function renderMessage(content) {
   const esc = escapeHtml(content)
-  // 1) 消息中的 /files/ 下载链接 → 下载卡片（send_file 通道）
+  // 1) 消息中的 /files/ 下载链接 → 下载卡片（send_file 通道）。
+  //    统一改走 /api/files/download 受控下载：同源 + Content-Disposition: attachment，
+  //    避免直连 http://127.0.0.1:6661/files/... 时 localhost 访问跨源，
+  //    txt 等文本文件被浏览器内联显示而非下载。
   let html = esc.replace(
     /(https?:\/\/[^\s"'<>（）()]+?\/files\/[^\s"'<>（）()]+)|(\/files\/[^\s"'<>（）()]+)/g,
     (m) => {
-      const href = m.startsWith('/') ? window.location.origin + m : m
-      const fileName = decodeURIComponent(m.split('/files/')[1] || '文件')
-      const safeName = escapeHtml(fileName)
+      const fileName = decodeURIComponent(m.split('/files/')[1] || '文件').replace(/[。，；！？,.!?;:\s]+$/, '')
+      const safeName = escapeHtml(fileName || '文件')
+      const href = window.location.origin + '/api/files/download?path=' + encodeURIComponent('data/send_files/' + fileName)
       return `<a class="file-download-card" href="${escapeHtml(href)}" download="${safeName}" title="点击下载 ${safeName}"><span class="file-card-icon"></span><span class="file-card-name">${safeName}</span><span class="file-card-btn">下载</span></a>`
     }
   )
@@ -122,8 +125,11 @@ function renderMessage(content) {
   html = html.replace(
     /([A-Za-z]:[\\/][^\s"'<>（）()]+)/g,
     (m) => {
-      const href = window.location.origin + '/api/files/download?path=' + encodeURIComponent(m)
-      const fileName = m.split(/[\\/]/).pop() || '文件'
+      // 先剥离尾部标点与空白（与后端 strip 一致），避免把句号/逗号带进 path 导致 404
+      const clean = m.replace(/[。，；！？,.!?;:\s]+$/, '')
+      if (!clean) return m
+      const href = window.location.origin + '/api/files/download?path=' + encodeURIComponent(clean)
+      const fileName = clean.split(/[\\/]/).pop() || '文件'
       const safeName = escapeHtml(fileName)
       return `<a class="file-download-card" href="${escapeHtml(href)}" title="点击下载 ${safeName}"><span class="file-card-icon"></span><span class="file-card-name">${safeName}</span><span class="file-card-btn">下载</span></a>`
     }

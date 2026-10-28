@@ -14,12 +14,16 @@ import threading
 import time
 from pathlib import Path
 
+from loguru import logger
+
+from . import cron_parser
+from . import task_engine
 from . import tasks
 from .config import config
 
-_scheduler_thread: threading.Thread | None = None
-_running = False
-_errors: list[str] = []
+_scheduler_thread: threading.Thread | None = None  # 调度线程对象
+_running = False  # 调度线程运行标记
+_errors: list[str] = []  # 最近错误记录（保留 20 条）
 
 
 # ---- 通知 ----
@@ -61,7 +65,7 @@ def _powershell_popup(title: str, message: str) -> str | None:
         "Add-Type -AssemblyName System.Windows.Forms; "
         "[System.Windows.Forms.MessageBox]::Show("
         f"'{(message or '').replace(chr(39), chr(39)+chr(39))}', "
-        f"'{(title or '').replace(chr(39), chr(39)+chr(39))}', 'OK', 'Information')"
+        f"'{(title or '').replace(chr(39), chr(39)+chr(39))}', \"OK\", \"Information\")"
     )
     proc = subprocess.run(
         ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
@@ -108,7 +112,10 @@ def write_note(text: str, ts: str) -> Path:
 # ---- 调度 ----
 
 def _execute(item: dict, triggered: datetime.datetime) -> None:
-    """执行一个到期任务：便签 + 通知 + 写日志。"""
+    """执行一个到期任务：自动任务走引擎；旧便签任务走便签 + 通知 + 写日志。"""
+    if tasks.is_auto(item):
+        _execute_auto(item)
+        return
     text = item.get("text", "")
     action = item.get("action", "both")
     ts = triggered.strftime("%Y-%m-%d %H:%M:%S")
@@ -118,12 +125,36 @@ def _execute(item: dict, triggered: datetime.datetime) -> None:
         try:
             note_path = write_note(text, ts)
             results.append(f"便签已生成：{note_path.name}")
+            logger.info(f"[Scheduler] 便签已生成：{note_path}")
         except Exception as exc:  # noqa: BLE001
+            logger.error(f"[Scheduler] 便签生成失败：{exc}")
             results.append(f"便签生成失败：{exc}")
     if action in ("remind", "both"):
         used = _notify("⏰ 噜噜的定时提醒", f"到点啦：{text}")
         results.append(used)
     tasks.log_event_raw(text, ts, "；".join(results) or "已执行", note=str(note_path) if note_path else "")
+    logger.info(f"[Scheduler] 任务已执行：{text}，结果：{'；'.join(results) or '已执行'}")
+
+
+def _execute_auto(item: dict) -> None:
+    """执行自动任务：引擎内部负责白名单/防重入锁/写日志/通知，此处记录调度侧摘要。"""
+    result = task_engine.execute_auto(item)
+    summary = result.get("result") or result.get("error") or "已执行"
+    logger.info(
+        f"[Scheduler] 自动任务已执行：{item.get('name')}，"
+        f"ok={result.get('ok')}，耗时 {result.get('used_ms')}ms：{summary[:80]}"
+    )
+    # 点火2-任务：自动任务执行完成后自动沉淀情景记忆（失败静默，不阻塞调度）
+    try:
+        from capylulu.memory3 import store as m3_store
+        m3_store.log_episodic(
+            task=(item.get("name") or item.get("text") or "自动任务"),
+            action="自动任务执行",
+            result=(summary or "")[:300],
+            agents="调度器",
+        )
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _tick() -> None:
@@ -148,7 +179,17 @@ def _tick() -> None:
     due.sort(key=lambda x: x[2])
     idx, item, nxt_dt = due[0]
     _execute(item, nxt_dt)
-    if item.get("kind") == "once":
+    if tasks.is_auto(item):
+        # 自动任务：cron 推进下一次触发；cron 非法则停用，避免死循环报错
+        try:
+            spec = cron_parser.parse_cron(item.get("cron", ""))
+            nxt2 = cron_parser.next_after(spec, now)
+            item["next"] = nxt2.strftime("%Y-%m-%d %H:%M") if nxt2 else ""
+        except ValueError as exc:
+            logger.error(f"[Scheduler] 自动任务 cron 非法，已停用：{item.get('name')} ({exc})")
+            item["enabled"] = False
+            item["next"] = ""
+    elif item.get("kind") == "once":
         item["enabled"] = False
         item["next"] = ""
     else:
@@ -164,6 +205,7 @@ def _scheduler_loop(stop_event: threading.Event) -> None:
             _tick()
         except Exception as exc:  # noqa: BLE001
             _errors.append(f"{time.strftime('%H:%M:%S')} {exc}")
+            logger.error(f"[Scheduler] 调度轮询异常：{exc}")
             if len(_errors) > 20:
                 _errors.pop(0)
         stop_event.wait(15)  # 空闲 sleep，不空转
@@ -183,6 +225,7 @@ def start() -> str:
     _scheduler_thread._capylulu_stop = stop_event  # noqa: SLF001
     _running = True
     _scheduler_thread.start()
+    logger.info("[Scheduler] 调度器已启动")
     return "调度器已启动（daemon 常驻，空闲每 15 秒检查一次）"
 
 
@@ -194,6 +237,7 @@ def stop() -> str:
         t._capylulu_stop.set()  # noqa: SLF001
         t.join(timeout=3)
     _running = False
+    logger.info("[Scheduler] 调度器已停止")
     return "调度器已停止"
 
 

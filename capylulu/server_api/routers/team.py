@@ -3,6 +3,7 @@
 - GET /team/agents：成员列表（含 capabilities / description / icon）；
 - POST /team/agents · PUT /team/agents/{name} · PATCH .../enabled · DELETE ...：
   Agent CRUD（新增字段 capabilities / description / icon）；
+- POST /team/reconfigure：重载路由与 Agent；
 - GET /team/tasks：任务台账列表 + 状态统计；
 - POST /team/tasks：手动委派测试（走真实委派链路：能力路由 + 自动升级 + 台账）；
 - POST /team/tasks/clear：清空任务台账。
@@ -21,6 +22,7 @@ router = APIRouter(tags=["team"])
 
 @router.get("/team/agents")
 def list_agents() -> dict:
+    """Agent 成员列表。"""
     return {"items": agents_store.list_agents()}
 
 
@@ -37,6 +39,7 @@ class AddAgentBody(BaseModel):
 
 @router.post("/team/agents")
 def add_agent(body: AddAgentBody) -> dict:
+    """新增 Agent 成员并重载路由。"""
     name = (body.name or "").strip()
     role = (body.role or "").strip()
     if not name or not role:
@@ -76,6 +79,7 @@ def _csv(value: str | list[str] | None) -> str | None:
 
 @router.put("/team/agents/{name}")
 def update_agent(name: str, body: UpdateAgentBody) -> dict:
+    """更新 Agent 成员并重载路由。"""
     try:
         msg = agents_store.update_agent(
             name,
@@ -100,6 +104,7 @@ class ToggleBody(BaseModel):
 
 @router.patch("/team/agents/{name}/enabled")
 def toggle_agent(name: str, body: ToggleBody) -> dict:
+    """启停 Agent 成员并重载路由。"""
     try:
         msg = agents_store.set_enabled(name, body.enabled)
     except Exception as exc:  # noqa: BLE001
@@ -111,6 +116,7 @@ def toggle_agent(name: str, body: ToggleBody) -> dict:
 
 @router.delete("/team/agents/{name}")
 def remove_agent(name: str) -> dict:
+    """删除 Agent 成员并重载路由。"""
     try:
         msg = agents_store.remove_agent(name)
     except Exception as exc:  # noqa: BLE001
@@ -122,6 +128,7 @@ def remove_agent(name: str) -> dict:
 
 @router.post("/team/reconfigure")
 def reconfigure() -> dict:
+    """重载能力路由与 Agent 配置。"""
     reload_routing()
     agent.reconfigure()
     return {"ok": True, "message": "路由与 Agent 已重载"}
@@ -173,6 +180,7 @@ def dispatch_test(body: DispatchTestBody) -> dict:
 
 @router.post("/team/tasks/clear")
 def clear_tasks() -> dict:
+    """清空任务台账。"""
     n = team.clear()
     return {"ok": True, "message": f"已清理 {n} 条任务台账"}
 

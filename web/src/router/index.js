@@ -3,6 +3,12 @@ import AppShell from '../layout/AppShell.vue'
 
 const routes = [
   {
+    path: '/login',
+    name: 'login',
+    component: () => import('../views/LoginView.vue'),
+    meta: { title: '登录' },
+  },
+  {
     path: '/',
     component: AppShell,
     children: [

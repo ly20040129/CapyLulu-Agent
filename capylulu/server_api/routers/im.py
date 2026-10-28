@@ -24,8 +24,14 @@ router = APIRouter(tags=["im"])
 
 @router.get("/im/channels")
 def list_channels() -> dict:
+    """IM 通道列表（凭据脱敏后返回）。"""
     broker = get_broker()
-    return {"items": broker.config_list(), "types": ["webhook", "httpin"]}
+    items = broker.config_list()
+    # 凭据脱敏：secret（钉钉加签密钥等）绝不下发明文，仅标记是否已设置
+    for it in items:
+        it["has_secret"] = bool(it.get("secret"))
+        it.pop("secret", None)
+    return {"items": items, "types": ["webhook", "httpin"]}
 
 
 class ChannelBody(BaseModel):
@@ -38,6 +44,7 @@ class ChannelBody(BaseModel):
 
 @router.post("/im/channels")
 def add_channel(body: ChannelBody) -> dict:
+    """新增 IM 通道。"""
     item = {"name": (body.name or "").strip(), "type": body.type,
             "webhook_url": body.webhook_url, "secret": (body.secret or "").strip(),
             "enabled": body.enabled}
@@ -49,6 +56,7 @@ def add_channel(body: ChannelBody) -> dict:
 
 @router.put("/im/channels/{name}")
 def update_channel(name: str, body: ChannelBody) -> dict:
+    """更新 IM 通道配置。"""
     item = {"name": (body.name or "").strip(), "type": body.type,
             "webhook_url": body.webhook_url, "secret": (body.secret or "").strip(),
             "enabled": body.enabled}
@@ -60,6 +68,7 @@ def update_channel(name: str, body: ChannelBody) -> dict:
 
 @router.delete("/im/channels/{name}")
 def delete_channel(name: str) -> dict:
+    """删除 IM 通道。"""
     r = get_broker().delete_channel(name)
     if not r.get("ok"):
         raise HTTPException(status_code=404, detail=r.get("message", "删除失败"))
@@ -74,6 +83,7 @@ class TestBody(BaseModel):
 
 @router.post("/im/channels/{name}/test")
 def send_test(name: str, body: TestBody) -> dict:
+    """向指定通道发送一条测试消息。"""
     ch = get_broker().get_channel(name)
     if ch is None:
         raise HTTPException(status_code=404, detail=f"通道「{name}」不存在")
@@ -87,11 +97,13 @@ def send_test(name: str, body: TestBody) -> dict:
 
 @router.get("/im/inbox")
 def list_inbox(limit: int = 100) -> dict:
+    """收件箱消息列表（含回复状态）。"""
     return {"items": get_broker().list_inbox(limit)}
 
 
 @router.delete("/im/inbox")
 def clear_inbox() -> dict:
+    """清空收件箱。"""
     n = get_broker().clear_inbox()
     return {"ok": True, "cleared": n, "message": f"已清空 {n} 条消息"}
 
@@ -123,4 +135,5 @@ def receive_incoming(body: IncomingBody) -> dict:
 
 @router.post("/im/poll")
 def poll_channels() -> dict:
+    """手动触发一次通道轮询 + 处理。"""
     return {"ok": True, **get_broker().poll_channels()}

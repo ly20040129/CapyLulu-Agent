@@ -22,6 +22,7 @@ router = APIRouter(tags=["evolve"])
 
 @router.get("/evolve/lessons")
 def list_lessons(limit: int = 200) -> dict:
+    """经验库列表 + 统计。"""
     return {"items": lessons.list_lessons(limit), "stats": lessons.stats()}
 
 
@@ -34,6 +35,7 @@ class AddLessonBody(BaseModel):
 
 @router.post("/evolve/lessons")
 def add_lesson(body: AddLessonBody) -> dict:
+    """新增经验条目（同 trigger+advice 自动去重）。"""
     trigger = (body.trigger or "").strip()
     advice = (body.advice or "").strip()
     if not trigger or not advice:
@@ -49,6 +51,7 @@ def add_lesson(body: AddLessonBody) -> dict:
 
 @router.delete("/evolve/lessons/{lesson_id}")
 def remove_lesson(lesson_id: str) -> dict:
+    """删除经验条目。"""
     ok = lessons.remove_lesson(lesson_id)
     if not ok:
         raise HTTPException(status_code=404, detail=f"未找到经验：{lesson_id}")
@@ -66,6 +69,7 @@ class ReflectBody(BaseModel):
 
 @router.post("/evolve/reflect")
 def run_reflect(body: ReflectBody) -> dict:
+    """触发反思：force 直接执行，否则按间隔/最小新任务数判定。"""
     try:
         if body.force:
             return {"ok": True, "triggered": True, **reflect.reflect(limit=body.limit, force=True)}
@@ -91,6 +95,7 @@ class ImproveBody(BaseModel):
 
 @router.post("/evolve/improve")
 def run_improve(body: ImproveBody) -> dict:
+    """触发改进：force 直接执行，否则按间隔/最小新任务数判定。"""
     try:
         if body.force:
             return {"ok": True, "triggered": True, **improve.improve(max_auto=body.max_auto, force=True)}
@@ -109,11 +114,13 @@ def run_improve(body: ImproveBody) -> dict:
 
 @router.get("/evolve/log")
 def list_log(limit: int = 100) -> dict:
+    """进化日志列表 + 统计。"""
     return {"items": improve.list_log(limit), "stats": improve.log_stats()}
 
 
 @router.get("/evolve/status")
 def evolve_status() -> dict:
+    """上次触发状态：时间 / 台账 / 经验库 / 日志计数。"""
     st = maybe.status()
     st["lesson_count"] = lessons.stats().get("total", 0)
     st["applied_total"] = lessons.stats().get("applied_total", 0)

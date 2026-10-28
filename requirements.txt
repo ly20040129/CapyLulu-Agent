@@ -9,4 +9,3 @@ Pillow>=10.0
 pypdf>=4.0
 winotify>=1.1
 send2trash>=1.8
-（内容由AI生成，仅供参考）

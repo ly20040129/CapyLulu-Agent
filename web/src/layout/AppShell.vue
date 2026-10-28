@@ -68,6 +68,18 @@
 
     <!-- 右：主内容 -->
     <main class="main-area">
+      <header class="top-bar">
+        <span class="top-title">{{ route.meta?.title || '' }}</span>
+        <div class="user-area">
+          <template v-if="user">
+            <span class="user-name">{{ user.name }}</span>
+            <button class="btn btn-ghost btn-sm" @click="logout">退出</button>
+          </template>
+          <template v-else>
+            <button class="btn btn-outline btn-sm" @click="goLogin">登录</button>
+          </template>
+        </div>
+      </header>
       <router-view />
     </main>
   </div>
@@ -76,10 +88,12 @@
 <script setup>
 import { onMounted, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { miscApi, settingsApi } from '../api'
+import { authApi, miscApi, settingsApi } from '../api'
 
 const route = useRoute()
 const router = useRouter()
+
+const user = ref(null)  // 当前登录用户 {uid, name}，未登录为 null
 
 const navs = [
   { name: 'chat', label: '对话', icon: '/images/capy/capy02.png' },
@@ -132,7 +146,29 @@ async function callMascot() {
 const savedPalette = localStorage.getItem('capy-palette')
 if (savedPalette) applyPalette(savedPalette)
 
+async function loadUser() {
+  try {
+    const r = await authApi.me()
+    user.value = r.user || null
+  } catch (e) {
+    user.value = null
+  }
+}
+
+function goLogin() {
+  localStorage.setItem('capy-redirect', route.fullPath)
+  router.push({ name: 'login' })
+}
+
+async function logout() {
+  try { await authApi.logout() } catch (e) { /* 本地也清除 */ }
+  localStorage.removeItem('capy-token')
+  user.value = null
+  toast('已退出登录')
+}
+
 onMounted(async () => {
+  loadUser()
   tip.value = tips[Math.floor(Math.random() * tips.length)]
   try {
     const st = await miscApi.status()
@@ -235,4 +271,16 @@ const toast = provideToast()
 .side-tip .tip-text { font-size: 12px; color: var(--capy-text2); }
 
 .main-area { flex: 1; min-width: 0; overflow-y: auto; }
+
+.top-bar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 44px; padding: 0 16px;
+  background: var(--capy-glass-sidebar);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--capy-border-soft);
+}
+.top-title { font-size: 13px; color: var(--capy-text2); font-weight: 600; }
+.user-area { display: flex; align-items: center; gap: 10px; }
+.user-name { font-size: 13px; font-weight: 600; }
 </style>

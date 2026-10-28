@@ -1,4 +1,9 @@
-"""模型 / 配色 / 数据目录设置。"""
+"""模型 / 配色 / 数据目录设置。
+
+- GET  /settings：读取全部设置；
+- POST /settings/llm：更新 LLM 配置；
+- POST /settings/palette：切换配色。
+"""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
@@ -10,11 +15,12 @@ from capylulu.ui.palette import PALETTES, PALETTE_NAMES
 
 router = APIRouter(tags=["settings"])
 
-PROVIDERS = ["zhipu", "deepseek"]
+PROVIDERS = ["zhipu", "deepseek"]  # 支持的 LLM 服务商
 
 
 @router.get("/settings")
 def get_settings() -> dict:
+    """返回当前 LLM / 配色 / 数据目录配置。"""
     return {
         "provider": config.llm_provider,
         "palette": config.palette,
@@ -35,6 +41,7 @@ class LlmBody(BaseModel):
 
 @router.post("/settings/llm")
 def save_llm(body: LlmBody) -> dict:
+    """保存 LLM 配置并重载 Agent。"""
     try:
         msg = config.update_llm(body.provider, body.api_key.strip(), body.model.strip(), body.base_url.strip())
     except Exception as exc:  # noqa: BLE001
@@ -49,6 +56,7 @@ class PaletteBody(BaseModel):
 
 @router.post("/settings/palette")
 def save_palette(body: PaletteBody) -> dict:
+    """切换配色主题。"""
     if body.name not in PALETTES:
         raise HTTPException(status_code=400, detail="未知配色")
     config.set_palette(body.name)

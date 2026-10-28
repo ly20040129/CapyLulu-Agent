@@ -261,6 +261,8 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .badge-ok { background: color-mix(in srgb, var(--capy-ok) 14%, transparent); color: var(--capy-ok); border-color: color-mix(in srgb, var(--capy-ok) 40%, transparent); }
 .badge-off { opacity: .6; }
 .badge-danger { background: color-mix(in srgb, var(--capy-danger) 12%, transparent); color: var(--capy-danger); border-color: color-mix(in srgb, var(--capy-danger) 40%, transparent); }
+.badge-run { background: color-mix(in srgb, var(--capy-yellow) 16%, transparent); color: var(--capy-yellow); border-color: color-mix(in srgb, var(--capy-yellow) 45%, transparent); animation: badge-run-pulse 1.4s ease-in-out infinite; }
+@keyframes badge-run-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 
 /* ---------- 页头 ---------- */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }

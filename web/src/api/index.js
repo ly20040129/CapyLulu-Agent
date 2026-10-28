@@ -1,12 +1,24 @@
 const BASE = '/api'
 
+const TOKEN_KEY = 'capy-token'  // 登录 token 的 localStorage 键
+
+function getToken() {
+  return localStorage.getItem(TOKEN_KEY) || ''
+}
+
 async function http(method, url, body) {
   const opts = { method, headers: {} }
+  const token = getToken()
+  if (token) opts.headers['Authorization'] = `Bearer ${token}`
   if (body !== undefined) {
     opts.headers['Content-Type'] = 'application/json'
     opts.body = JSON.stringify(body)
   }
   const res = await fetch(BASE + url, opts)
+  if (res.status === 401 && !url.startsWith('/auth/login')) {
+    // token 失效：清除登录态（无权限隔离，仅清理身份标记）
+    localStorage.removeItem(TOKEN_KEY)
+  }
   if (!res.ok) {
     let detail = res.statusText
     try { detail = (await res.json()).detail || detail } catch (e) { /* ignore */ }
@@ -69,9 +81,30 @@ export const mcpApi = {
 export const tasksApi = {
   list: () => api.get('/tasks'),
   add: (text) => api.post('/tasks', { text }),
+  update: (text, newText) => api.put(`/tasks/${encodeURIComponent(text)}`, { text: newText }),
   toggle: (text, enabled) => api.patch(`/tasks/${encodeURIComponent(text)}/enabled`, { enabled }),
   del: (text) => api.del(`/tasks/${encodeURIComponent(text)}`),
   logs: () => api.get('/tasks/logs'),
+  autoOptions: () => api.get('/tasks/auto/options'),
+  autoStatus: () => api.get('/tasks/auto/status'),
+  autoAdd: (body) => api.post('/tasks/auto', body),
+  parse: (text) => api.post('/tasks/parse', { text }),
+  autoToggle: (name, enabled) => api.patch(`/tasks/auto/${encodeURIComponent(name)}/enabled`, { enabled }),
+  autoDel: (name) => api.del(`/tasks/auto/${encodeURIComponent(name)}`),
+  upload: async (file) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const opts = { method: 'POST', body: fd }
+    const token = getToken()
+    if (token) opts.headers = { Authorization: `Bearer ${token}` }
+    const res = await fetch(BASE + '/tasks/upload', opts)
+    if (!res.ok) {
+      let detail = res.statusText
+      try { detail = (await res.json()).detail || detail } catch (e) { /* ignore */ }
+      throw new Error(detail)
+    }
+    return res.json()
+  },
 }
 
 export const memoryApi = {
@@ -130,6 +163,13 @@ export const settingsApi = {
   get: () => api.get('/settings'),
   llm: (body) => api.post('/settings/llm', body),
   palette: (name) => api.post('/settings/palette', { name }),
+}
+
+export const authApi = {
+  register: (name, password) => api.post('/auth/register', { name, password }),
+  login: (name, password) => api.post('/auth/login', { name, password }),
+  logout: () => api.post('/auth/logout'),
+  me: () => api.get('/auth/me'),
 }
 
 export const miscApi = {

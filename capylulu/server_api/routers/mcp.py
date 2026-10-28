@@ -1,4 +1,12 @@
-"""MCP 能力中心：MCP Server 增删改查、启停、工具列表与连通性测试。"""
+"""MCP 能力中心：MCP Server 增删改查、启停、工具列表与连通性测试。
+
+- GET/POST /mcp/servers：服务器列表 / 新增；
+- PUT/DELETE /mcp/servers/{name}：更新 / 移除；
+- PATCH /mcp/servers/{name}/enabled：启停；
+- POST/GET /mcp/servers/{name}/test|tools：连通性测试 / 工具列表；
+- GET/POST /mcp/market(|/install)：市场搜索 / 一键安装；
+- GET/POST /mcp/dynamic|refresh：动态注册工具查看 / 一键重刷。
+"""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
@@ -21,11 +29,13 @@ class McpBody(BaseModel):
 
 @router.get("/mcp/servers")
 def list_servers() -> dict:
+    """已配置的 MCP 服务器列表（含 SDK 是否可用）。"""
     return {"items": mcp_store.load_mcps(), "sdk_ok": mcp_client.sdk_ok()}
 
 
 @router.post("/mcp/servers")
 def add_server(body: McpBody) -> dict:
+    """新增 MCP 服务器配置。"""
     msg = mcp_store.add_mcp(body.name, body.type, body.config, body.enabled)
     if "已接入" not in msg and "已存在" not in msg:
         raise HTTPException(status_code=400, detail=msg)
@@ -34,6 +44,7 @@ def add_server(body: McpBody) -> dict:
 
 @router.put("/mcp/servers/{name}")
 def update_server(name: str, body: McpBody) -> dict:
+    """更新 MCP 服务器配置。"""
     msg = mcp_store.update_mcp(name, body.config, body.enabled)
     if "已更新" not in msg:
         raise HTTPException(status_code=400, detail=msg)
@@ -42,6 +53,7 @@ def update_server(name: str, body: McpBody) -> dict:
 
 @router.delete("/mcp/servers/{name}")
 def remove_server(name: str) -> dict:
+    """移除 MCP 服务器配置。"""
     msg = mcp_store.remove_mcp(name)
     if "已移除" not in msg:
         raise HTTPException(status_code=404, detail=msg)
@@ -55,6 +67,7 @@ class ToggleBody(BaseModel):
 
 @router.patch("/mcp/servers/{name}/enabled")
 def toggle_server(name: str, body: ToggleBody) -> dict:
+    """启用 / 停用 MCP 服务器。"""
     msg = mcp_store.set_enabled(name, body.enabled)
     if "不存在" in msg:
         raise HTTPException(status_code=404, detail=msg)
@@ -64,6 +77,7 @@ def toggle_server(name: str, body: ToggleBody) -> dict:
 
 @router.post("/mcp/servers/{name}/test")
 def test_server(name: str) -> dict:
+    """连通性测试：连接服务器并拉取工具清单。"""
     item = mcp_store.get_mcp(name)
     if not item:
         raise HTTPException(status_code=404, detail=f"服务 {name} 不存在")
@@ -85,6 +99,7 @@ def test_server(name: str) -> dict:
 
 @router.get("/mcp/servers/{name}/tools")
 def server_tools(name: str) -> dict:
+    """浏览指定服务器的工具清单（拉取后写入缓存并同步动态注册）。"""
     item = mcp_store.get_mcp(name)
     if not item:
         raise HTTPException(status_code=404, detail=f"服务 {name} 不存在")

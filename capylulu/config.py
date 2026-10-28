@@ -1,6 +1,8 @@
 """配置加载 + 动态更新（LLM + UI 配色 + 数据目录 data_dir）"""
 from pathlib import Path
+
 import yaml
+from loguru import logger
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent  # 项目根（含 config.yaml / data / assets）
 
@@ -20,10 +22,11 @@ class Config:
         with open(self._path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
 
-    def _save(self):
+    def _save(self) -> None:
         """写回 yaml"""
         with open(self._path, "w", encoding="utf-8") as f:
             yaml.dump(self._data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        logger.info(f"[Config] 已保存配置：{self._path}")
 
     @property
     def llm(self) -> dict:
@@ -69,6 +72,7 @@ class Config:
         try:
             self._save()
         except Exception as e:
+            logger.error(f"[Config] 数据目录写回失败：{e}")
             return f"配置保存失败（内存已更新）: {e}"
         return new_dir
 
@@ -89,6 +93,7 @@ class Config:
         try:
             self._save()
         except Exception as e:
+            logger.error(f"[Config] 配色写回失败：{e}")
             return f"配色已应用（写入失败: {e}）"
         return name
 
@@ -127,7 +132,9 @@ class Config:
         try:
             self._save()
         except Exception as e:
+            logger.error(f"[Config] LLM 配置写回失败：{e}")
             return f"配置保存失败（内存已更新）: {e}"
+        logger.info(f"[Config] 已切换 LLM：{provider} / {model}")
         return f"已切换到 {provider} / {model}"
 
 

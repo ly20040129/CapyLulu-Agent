@@ -1,4 +1,15 @@
-"""用户记忆：列表、读取、创建、保存、删除；三级记忆与 Deep Dream 蒸馏（批次4）。"""
+"""用户记忆：列表、读取、创建、保存、删除；三级记忆与 Deep Dream 蒸馏（批次4）。
+
+- GET /memories：用户记忆列表；
+- GET/POST /memories/{name}：读取 / 保存指定记忆；
+- POST /memories：创建记忆；
+- DELETE /memories/{name}：删除记忆；
+- GET /memories/tiers：三级记忆总览；
+- POST /memories/tiers/working|episodic：写入工作 / 情景记忆；
+- GET /memories/last-dream：上次蒸馏状态；
+- GET /memories/query：三级记忆合并检索；
+- POST /memories/deep-dream：手动触发蒸馏。
+"""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
@@ -13,6 +24,7 @@ router = APIRouter(tags=["memory"])
 
 @router.get("/memories")
 def list_memories() -> dict:
+    """用户记忆条目列表。"""
     return {"items": memory.list_memories()}
 
 
@@ -84,6 +96,7 @@ def memory_deep_dream(body: DreamBody) -> dict:
 
 @router.get("/memories/{name}")
 def read_memory(name: str) -> dict:
+    """按名称读取用户记忆内容。"""
     try:
         content = memory.read_memory(name)
     except Exception as exc:  # noqa: BLE001
@@ -98,6 +111,7 @@ class MemoryBody(BaseModel):
 
 @router.post("/memories")
 def create_memory(body: MemoryBody) -> dict:
+    """创建一条用户记忆。"""
     name = (body.name or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="名称不能为空")
@@ -110,6 +124,7 @@ def create_memory(body: MemoryBody) -> dict:
 
 @router.put("/memories/{name}")
 def save_memory(name: str, body: MemoryBody) -> dict:
+    """保存指定用户记忆内容。"""
     try:
         msg = memory.save_memory(name, body.content)
     except Exception as exc:  # noqa: BLE001
@@ -119,6 +134,7 @@ def save_memory(name: str, body: MemoryBody) -> dict:
 
 @router.delete("/memories/{name}")
 def delete_memory(name: str) -> dict:
+    """删除指定用户记忆。"""
     try:
         msg = memory.delete_memory(name)
     except Exception as exc:  # noqa: BLE001

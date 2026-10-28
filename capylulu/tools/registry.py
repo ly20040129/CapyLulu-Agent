@@ -55,6 +55,15 @@ def call_tool(name: str, arguments: dict) -> str:
     # 防御：LLM 可能传 None / 非 dict（如 null、[]），避免 **None 崩溃
     if not isinstance(arguments, dict):
         arguments = {}
+    # 参数完整性校验：LLM 偶发返回空 arguments（空串/null）时，直接展开调用会抛
+    # "missing N required positional arguments" 的 TypeError，既不友好也无法引导重试。
+    # 改为按 schema 的 required 校验，缺失时返回明确提示，LLM 可据此补参后重试。
+    params_schema = entry.get("schema", {}).get("function", {}).get("parameters") or {}
+    required = params_schema.get("required") or []
+    missing = [k for k in required if k not in arguments]
+    if missing:
+        return (f"工具 {name} 参数缺失（失败）：缺少必需参数 {', '.join(missing)}；"
+                "请先获取必要信息（如路径、内容）后补齐参数再重新调用。")
     return entry["func"](**arguments)
 
 

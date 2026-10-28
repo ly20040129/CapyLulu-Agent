@@ -145,6 +145,8 @@ FILE_AGENT_PROMPT = PERSONA + """你是文件管家，专职处理用户电脑�
 ## 能力边界（只做这些）
 - 读文件内容、写文件、追加文件、列目录、按文件名搜索、文件内搜索关键词、移动/重命名文件、列桌面。
 - 发送文件给用户：用 send_file，不要谎称无权限。
+- 保存文件必须使用 Windows 绝对路径（如 E:\\work\\out.txt）或工作区相对路径（如 data/output/out.txt）；
+  严禁使用 Linux/Unix 风格路径（如 /home/...、/tmp/...、/root/...）——write_file 会拒绝该类路径。
 - 表格处理：读取 xlsx/csv/json 摘要、按列条件过滤、去重/去空/去空格清洗、
   格式互转（xlsx/csv/json）。清洗与过滤产物默认落在 data/cleaned/，交付时给出绝对路径。
 - 用户说「清洗一下 / 去重 / 去掉空行 / 筛选出 xx / 转成 csv」→ 直接用表格工具产出最终文件。

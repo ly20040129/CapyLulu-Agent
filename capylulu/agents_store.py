@@ -15,9 +15,11 @@ import json
 import time
 from pathlib import Path
 
+from loguru import logger
+
 from .config import config
 
-STORE = config.data_dir / "agents.json"
+STORE = config.data_dir / "agents.json"  # 管家团队数据文件
 
 
 def refresh_paths() -> None:
@@ -197,7 +199,7 @@ def _load() -> list[dict]:
         if isinstance(data, list) and data:
             return _ensure_fields(_ensure_leader(data))
     except (json.JSONDecodeError, TypeError):
-        pass
+        logger.warning(f"[Agents] agents.json 损坏，回退内置默认：{STORE}")
     return _ensure_fields(_ensure_leader(_defaults()))
 
 
@@ -257,6 +259,7 @@ def add_agent(name: str, role: str, prompt: str, keywords: str = "", tools: str 
         "created": time.strftime("%Y-%m-%d %H:%M"),
     })
     _save(agents)
+    logger.info(f"[Agents] 已新增 Agent：{name}")
     return ""
 
 
@@ -283,6 +286,7 @@ def update_agent(name: str, *, role: str = None, prompt: str = None,
             if icon is not None:
                 a["icon"] = (icon or "").strip() or "/lulu/1.png"
             _save(agents)
+            logger.info(f"[Agents] 已更新 Agent：{name}")
             return ""
     return f"未找到 Agent：{name}"
 
@@ -295,6 +299,7 @@ def set_enabled(name: str, enabled: bool) -> str:
         if a.get("name") == name:
             a["enabled"] = bool(enabled)
             _save(agents)
+            logger.info(f"[Agents] 已{'启用' if enabled else '停用'} Agent：{name}")
             return ""
     return f"未找到 Agent：{name}"
 
@@ -310,5 +315,6 @@ def remove_agent(name: str) -> str:
                 return f"「{name}」是内置 Agent，不能删除，可停用或编辑"
             agents.remove(a)
             _save(agents)
+            logger.info(f"[Agents] 已删除 Agent：{name}")
             return ""
     return f"未找到 Agent：{name}"

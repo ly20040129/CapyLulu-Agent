@@ -220,16 +220,26 @@ def parse_skill_md(path: str | Path) -> Skill:
     )
 
 
+def _skill_paths() -> list:
+    """收集技能目录下全部 SKILL.md 路径：扁平 <dir>/<name>.md + 任意层级子目录（rglob 覆盖技能包）。"""
+    if not SKILLS_DIR.is_dir():
+        return []
+    paths = list(SKILLS_DIR.glob("*.md")) + list(SKILLS_DIR.rglob("SKILL.md"))
+    return sorted(paths)
+
+
 def list_skills() -> list[dict]:
     """列出技能目录下所有可解析的 SKILL.md（含详情字段）。"""
     items: list[dict] = []
-    if not SKILLS_DIR.is_dir():
-        return items
-    for p in sorted(SKILLS_DIR.glob("*.md")):
+    seen: set[str] = set()
+    for p in _skill_paths():
         try:
             s = parse_skill_md(p)
         except ValueError:
             continue  # 跳过损坏文件，不阻断整体列表
+        if s.name in seen:
+            continue  # 同名去重（子目录优先于扁平同名文件）
+        seen.add(s.name)
         items.append({
             "name": s.name,
             "description": s.description,
@@ -245,9 +255,7 @@ def list_skills() -> list[dict]:
 def get_skill(name: str) -> Skill | None:
     """按技能名（或文件名）查找 SKILL.md；找不到返回 None。"""
     name = (name or "").strip()
-    if not SKILLS_DIR.is_dir():
-        return None
-    for p in SKILLS_DIR.glob("*.md"):
+    for p in _skill_paths():
         try:
             s = parse_skill_md(p)
         except ValueError:
@@ -263,6 +271,31 @@ def save_skill_md(name: str, md: str) -> Path:
     p = SKILLS_DIR / f"{name}.md"
     p.write_text(md, encoding="utf-8")
     return p
+
+
+def save_skill_dir(name: str, files: dict[str, str]) -> list[str]:
+    """把 {相对路径: 文本内容} 写入 <data_dir>/skills/<name>/ 子目录。
+
+    用于 SkillHub 等外部来源安装带附属文件（scripts/references 等）的技能；
+    防路径穿越：拒绝 .. 跳出技能目录的路径。返回实际写入的绝对路径列表。
+    """
+    name = (name or "").strip()
+    if not name or name in (".", ".."):
+        return []
+    SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+    base = (SKILLS_DIR / name).resolve()
+    written: list[str] = []
+    for rel, content in (files or {}).items():
+        rel = str(rel or "").replace("\\", "/").lstrip("/")
+        if not rel:
+            continue
+        p = (base / rel).resolve()
+        if not str(p).startswith(str(base) + "\\") and p != base:
+            continue  # 路径穿越或目录外，跳过
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content or "", encoding="utf-8")
+        written.append(str(p))
+    return written
 
 
 def ensure_builtin_skills() -> list[str]:
@@ -320,6 +353,11 @@ def run_skill(name: str, task: str, llm=None, max_iterations: int = 8) -> str:
     if tools:
         from ..tools.registry import get_tool_schemas  # 延迟导入避免循环
         schemas = get_tool_schemas(tools)
+    else:
+        # 无显式工具限定时放开全部已注册工具，由 LLM 按正文自主选择（SkillHub 安装的技能常见场景）
+        from ..tools.registry import get_tool_schemas  # 延迟导入避免循环
+        schemas = get_tool_schemas()
+        system += "\n任务中可使用全部已注册工具，请按技能正文自主选择合适的工具完成目标。"
     for _ in range(max_iterations):
         try:
             resp = llm.chat(messages, tools=schemas)

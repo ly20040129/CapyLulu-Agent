@@ -8,9 +8,11 @@ import json
 import time
 from pathlib import Path
 
+from loguru import logger
+
 from .config import config
 
-STORE = config.data_dir / "skills.json"
+STORE = config.data_dir / "skills.json"  # 技能广场数据文件
 
 
 def refresh_paths() -> None:
@@ -85,7 +87,7 @@ def _load() -> list[dict]:
                         x.setdefault(k, v)
             return data
     except (json.JSONDecodeError, TypeError):
-        pass
+        logger.warning(f"[Skills] skills.json 损坏，回退内置默认：{STORE}")
     return [dict(x) for x in DEFAULT_SKILLS]
 
 
@@ -113,6 +115,7 @@ def add_skill(name: str, skill_type: str, desc: str, source: str = "manual") -> 
         "created": time.strftime("%Y-%m-%d %H:%M"),
     })
     _save(items)
+    logger.info(f"[Skills] 已新增技能：{name}")
     return ""
 
 
@@ -124,6 +127,7 @@ def remove_skill(name: str) -> str:
                 return f"「{name}」是内置技能，不能删除"
             items.remove(x)
             _save(items)
+            logger.info(f"[Skills] 已删除技能：{name}")
             return ""
     return f"未找到技能：{name}"
 

@@ -188,6 +188,39 @@ def browser_click(selector: str, index: int = 0) -> str:
 
 
 @tool(
+    name="browser_click_ref",
+    description="按 browser_inspect 返回的编号点击页面元素（基于最近一次界面快照；快照过期需重新 browser_inspect）",
+    parameters={
+        "type": "object",
+        "properties": {
+            "index": {"type": "integer", "description": "browser_inspect 返回的元素编号（从 1 开始）"},
+        },
+        "required": ["index"],
+    },
+    risk="medium",
+)
+@_in_browser_thread
+def browser_click_ref(index: int) -> str:
+    if not _LAST_HINTS or time.time() - _LAST_HINTS_AT > 60:
+        return "界面快照已过期或为空，请先调用 browser_inspect"
+    idx = int(index) - 1
+    if idx < 0 or idx >= len(_LAST_HINTS):
+        return f"编号 {index} 超出范围（当前快照共 {len(_LAST_HINTS)} 个元素）"
+    selector = _coerce_selector(_LAST_HINTS[idx])
+    err = _ensure_browser()
+    if err:
+        return err
+    try:
+        loc = _page.locator(selector).first
+        loc.wait_for(state="visible", timeout=10000)
+        loc.click()
+        time.sleep(0.5)
+        return f"已点击元素 #{index}：{selector}"
+    except Exception as exc:  # noqa: BLE001
+        return _diagnose(f"点击 {selector}", selector, exc)
+
+
+@tool(
     name="browser_fill",
     description="在输入框中填入文本（CSS 选择器定位；填密码等敏感字段请用户注意）",
     parameters={
@@ -409,16 +442,23 @@ def _coerce_selector(selector: str) -> str:
     return s
 
 
+_LAST_HINTS: list = []  # 最近一次界面快照的 selector 列表（与编号一一对应），供 browser_click_ref 使用
+_LAST_HINTS_AT = 0.0
+
+
 def _element_hints(limit: int = 20) -> list:
     """收集当前页面可交互元素（input/textarea/select/button/a）的『可直接使用』选择器。
 
-    每个元素输出：推荐选择器（优先 id > name > placeholder > class > :has-text 文本）
-    + 简要属性描述，供上层 Agent 换选择器时复制即用。返回字符串列表。
+    参考 cowagent 的 DOM 快照模式：每个元素分配编号 [n]，输出「编号 + 推荐选择器
+    （优先 id > name > placeholder > class > :has-text 文本）+ 简要属性」，
+    LLM 按编号决策后可用 browser_click_ref 直接操作。返回带编号的字符串列表。
     """
+    global _LAST_HINTS, _LAST_HINTS_AT
     try:
         data = _page.evaluate(
             """() => {
                 const out = [];
+                const recs = [];
                 const seen = new Set();
                 const push = (el) => {
                     const tag = el.tagName.toLowerCase();
@@ -426,12 +466,12 @@ def _element_hints(limit: int = 20) -> list:
                     const name = el.getAttribute('name') || '';
                     const placeholder = el.getAttribute('placeholder') || '';
                     const cls = (typeof el.className === 'string' ? el.className : '') || '';
-                    const text = (el.innerText || el.value || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+                    const text = (el.innerText || el.value || '').trim().replace(/\\s+/g, ' ').slice(0, 30);
                     let rec = tag;
                     if (id) rec = tag + '#' + id;
                     else if (name) rec = tag + '[name="' + name + '"]';
                     else if (placeholder) rec = tag + '[placeholder="' + placeholder + '"]';
-                    else if (cls) rec = tag + '.' + cls.split(/\s+/).filter(Boolean).join('.');
+                    else if (cls) rec = tag + '.' + cls.split(/\\s+/).filter(Boolean).join('.');
                     else if (text) rec = tag + ':has-text("' + text + '")';
                     const parts = [];
                     if (id) parts.push('id=' + id);
@@ -439,17 +479,21 @@ def _element_hints(limit: int = 20) -> list:
                     if (placeholder) parts.push('placeholder=' + placeholder);
                     if (text) parts.push('text="' + text + '"');
                     const sig = rec + ' | ' + parts.join(' ');
-                    if (!seen.has(sig)) { seen.add(sig); out.push(rec + '   # ' + parts.join(' ')); }
+                    if (!seen.has(sig)) { seen.add(sig); out.push(rec + '   # ' + parts.join(' ')); recs.push(rec); }
                 };
                 document.querySelectorAll('input, textarea, select, button, a').forEach(push);
-                return out;
+                return {hints: out, recs: recs};
             }"""
         )
     except Exception:  # noqa: BLE001
         return []
-    hints = [f"  {item}" for item in (data or [])[:limit]]
-    if data and len(data) > limit:
-        hints.append(f"  ...（共 {len(data)} 个可交互元素，仅列前 {limit} 个）")
+    hints_raw = (data or {}).get("hints") or []
+    recs_raw = (data or {}).get("recs") or []
+    _LAST_HINTS = list(recs_raw)
+    _LAST_HINTS_AT = time.time()
+    hints = [f"  [{i}] {item}" for i, item in enumerate(hints_raw[:limit], 1)]
+    if hints_raw and len(hints_raw) > limit:
+        hints.append(f"  ...（共 {len(hints_raw)} 个可交互元素，仅列前 {limit} 个）")
     return hints
 
 
