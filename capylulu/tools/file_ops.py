@@ -6,6 +6,25 @@ from ..config import config
 from .registry import tool
 
 
+def _track_deliverable(path_str: str, note: str = "") -> None:
+    """产出类工具成功后把绝对路径自动登记进交付物台账。
+
+    开关 config.agent.get("deliverables_track", True)，默认开启；
+    登记失败仅记日志/静默，绝不影响工具本身的返回格式。
+    """
+    try:
+        if not config.agent.get("deliverables_track", True):
+            return
+        from ..deliverables import register_deliverable
+
+        p = Path(path_str)
+        register_deliverable("auto", str(p.resolve()), kind="file", note=note)
+    except Exception as exc:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).warning(f"[Deliverables] 自动登记失败（不影响工具返回）：{exc}")
+
+
 def _human_size(n: int) -> str:
     """把字节数转成带换算的人类可读大小，避免 LLM 口算换算出错。
 
@@ -116,6 +135,7 @@ def write_file(path: str, content: str) -> str:
         )
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(content, encoding="utf-8")
+    _track_deliverable(path, note="write_file")
     return f"已写入 {len(content)} 字符到 {path}"
 
 

@@ -2,7 +2,10 @@
 import json
 
 from .. import tool_log
+from ..compaction import compress_messages
+from ..history_events import append_event
 from ..tools.registry import get_tool_schemas, call_tool
+from .hooks import AgentHooks
 
 COMPRESS_PROMPT = (
     "请把对话历史压缩成中文要点摘要，必须保留以下信息：\n"
@@ -23,7 +26,8 @@ class BaseAgent:
 
     def __init__(self, name: str, system_prompt: str, tools: list[str] | None,
                  llm, max_iterations: int = 10, max_history: int = 32,
-                 tool_history: list[str] | None = None):
+                 tool_history: list[str] | None = None,
+                 hooks: AgentHooks | None = None, sess_id: str | None = None):
         self.name = name
         self.system_prompt = system_prompt
         self.tools = tools
@@ -31,6 +35,8 @@ class BaseAgent:
         self.max_iterations = max_iterations
         self.max_history = max_history
         self.tool_history = tool_history if tool_history is not None else []
+        self.hooks = hooks  # 阶段钩子容器；None 时 run_task 中零开销短路
+        self.sess_id = sess_id  # 会话事件日志 id；None 时不写事件
         self.messages: list[dict] = [{"role": "system", "content": system_prompt}]
 
     def reset(self) -> None:
@@ -46,23 +52,15 @@ class BaseAgent:
                     self.messages.append({"role": role, "content": content})
 
     def _compress(self) -> None:
-        """超出 max_history 时，把更早的对话压成摘要（保留意图与关键事实）。"""
-        if len(self.messages) <= self.max_history:
-            return
-        old, recent = self.messages[: -self.max_history + 2], self.messages[-self.max_history + 2:]
-        blob = "\n".join(f"{m['role']}: {m['content'][:400]}" for m in old)
-        try:
-            resp = self.llm.chat([
-                {"role": "system", "content": COMPRESS_PROMPT},
-                {"role": "user", "content": blob[:8000]},
-            ], tools=None)
-            summary = resp.get("content") or ""
-        except Exception:
-            summary = "（旧对话已省略，仅保留最近上下文）"
-        self.messages = (
-            [self.messages[0]]
-            + [{"role": "system", "content": "历史摘要（供上下文参考）：" + summary}]
-            + recent
+        """超出 max_history 时，把更早的对话压成摘要（保留意图与关键事实）。
+
+        压缩逻辑委托 compaction.compress_messages（行为完全等价：触发切片、
+        摘要前缀、失败回退文案均不变）；压缩触发时 compress 事件由 compaction
+        内部写入，这里不再重复写。
+        """
+        self.messages = compress_messages(
+            self.messages, self.llm, self.max_history,
+            prompt=COMPRESS_PROMPT, sess_id=self.sess_id,
         )
 
     def run_task(self, user_input: str, use_all_tools: bool = False) -> str:
@@ -71,6 +69,8 @@ class BaseAgent:
         use_all_tools=True 时使用全量工具（Leader 兜底场景）。
         """
         self.messages.append({"role": "user", "content": user_input})
+        if self.sess_id:
+            append_event(self.sess_id, {"type": "user/message", "content": user_input})
         self._compress()
 
         if use_all_tools:
@@ -119,7 +119,11 @@ class BaseAgent:
                 })
                 recent_tools.clear()
                 continue
+            if self.hooks is not None:
+                self.messages, use_tools = self.hooks.before_llm(self.messages, use_tools)
             resp = self.llm.chat(self.messages, tools=use_tools)
+            if self.hooks is not None:
+                resp = self.hooks.after_llm(resp)
             content = resp.get("content")
             tool_calls = resp.get("tool_calls")
             if not tool_calls:
@@ -133,6 +137,8 @@ class BaseAgent:
                     })
                     continue
                 self.messages.append({"role": "assistant", "content": reply})
+                if self.sess_id:
+                    append_event(self.sess_id, {"type": "assistant/message", "content": reply})
                 if last_tool_failed:
                     return (f"（{self.name} 最后调用的工具执行失败，任务未完成；"
                             f"失败信息：{last_fail_info}）")
@@ -181,7 +187,15 @@ class BaseAgent:
                     args = {}
                 self.tool_history.append(f"🔧 {self.name} · {name}({args})")
                 tool_log.append(f"🔧 {self.name} · {name}({args})")
+                if self.hooks is not None:
+                    args = self.hooks.before_tool(name, args)
+                if self.sess_id:
+                    append_event(self.sess_id, {"type": "tool/call", "name": name, "arguments": args})
                 result = call_tool(name, args)
+                if self.sess_id:
+                    append_event(self.sess_id, {"type": "tool/result", "name": name, "result": result})
+                if self.hooks is not None:
+                    result = self.hooks.after_tool(name, args, result)
                 recent_tools.append(name)
                 self.tool_history.append(f"  → {result[:240]}")
                 tool_log.append(f"  → {result[:240]}")

@@ -55,7 +55,8 @@ def match_by_capability(task: str, worker_names: list[str],
 class LeaderAgent(BaseAgent):
     """总代理：不亲手干重活；识别意图后派发给对应工作 Agent，复杂任务先拆解再带队执行，并把结果汇总成回复。"""
 
-    def __init__(self, llm, max_iterations: int, max_history: int, tool_history: list[str]):
+    def __init__(self, llm, max_iterations: int, max_history: int, tool_history: list[str],
+                 hooks=None, sess_id: str | None = None):
         super().__init__(
             name="总代理",
             system_prompt=LEADER_PROMPT,
@@ -64,6 +65,8 @@ class LeaderAgent(BaseAgent):
             max_iterations=max_iterations,
             max_history=max_history,
             tool_history=tool_history,
+            hooks=hooks,
+            sess_id=sess_id,
         )
         # 规划引擎：负责 chat / direct / plan 三模式决策与执行，并写规划日志
         self.planner = PlannerEngine(

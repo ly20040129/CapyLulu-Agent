@@ -7,7 +7,8 @@ from .base import BaseAgent
 from .. import agents_store
 
 
-def build_workers(llm, max_iterations: int, max_history: int, tool_history: list[str]) -> dict[str, BaseAgent]:
+def build_workers(llm, max_iterations: int, max_history: int, tool_history: list[str],
+                  hooks=None, sess_id: str | None = None) -> dict[str, BaseAgent]:
     """按 agents_store 当前启用的 Agent 创建各工作 Agent（名称 → BaseAgent 实例）。"""
     workers = {}
     for a in agents_store.list_agents():
@@ -24,6 +25,8 @@ def build_workers(llm, max_iterations: int, max_history: int, tool_history: list
             max_iterations=max_iterations,
             max_history=max_history,
             tool_history=tool_history,
+            hooks=hooks,
+            sess_id=sess_id,
         )
     return workers
 

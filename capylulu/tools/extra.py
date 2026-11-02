@@ -19,7 +19,7 @@ from pathlib import Path
 
 from .. import memory as memory_store
 from ..config import config
-from .registry import tool
+from .registry import approve_once, reject_approval, tool
 
 
 # ---------------- 剪贴板 ----------------
@@ -222,3 +222,46 @@ def memory_write(name: str = "", content: str = "") -> str:
     except Exception as exc:  # noqa: BLE001
         return f"记忆写入失败：{exc}"
     return f"✓ 已写入记忆：{msg}"
+
+
+# ---------------- 审批：一次性质押 ----------------
+
+@tool(
+    name="approve_tool",
+    description="放行一次指定高风险工具（仅当用户明确批准后调用）：在工具注册表内部建立一次性质押，之后同参数的高风险工具调用可执行一次并自动清除质押；arguments 需与目标调用参数一致，缺省空 dict",
+    parameters={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "要放行的高风险工具名"},
+            "arguments": {"type": "object", "description": "目标调用的参数（缺省空 dict）"},
+        },
+        "required": ["name"],
+    },
+    risk="low",
+)
+def approve_tool(name: str = "", arguments: dict | None = None) -> str:
+    name = (name or "").strip()
+    if not name:
+        return "工具名不能为空。"
+    if not approve_once(name, arguments):
+        return f"放行失败：工具 {name} 不存在或参数非法。"
+    return f"✓ 已放行工具 {name}（一次性，执行后自动清除）。"
+
+
+@tool(
+    name="reject_tool",
+    description="撤销对指定高风险工具的一次性质押（拒绝执行；仅在用户明确拒绝时调用）",
+    parameters={
+        "type": "object",
+        "properties": {"name": {"type": "string", "description": "工具名"}},
+        "required": ["name"],
+    },
+    risk="low",
+)
+def reject_tool(name: str = "") -> str:
+    name = (name or "").strip()
+    if not name:
+        return "工具名不能为空。"
+    removed = reject_approval(name)
+    suffix = "" if removed else "（原本就无质押）"
+    return f"✓ 已撤销 {name} 的审批质押{suffix}。"

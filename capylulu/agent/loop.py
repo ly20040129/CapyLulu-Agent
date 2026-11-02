@@ -3,8 +3,12 @@
 - Leader（总代理）：闲聊直接答；识别意图后派发给对应工作 Agent；回传结果汇总。
 - 工作 Agent（文件/电脑/浏览器/软件管家）：各自独立 system prompt、独立上下文、独立工具集。
 """
+import time
+
 from ..config import config
+from ..history_events import append_event
 from ..llm import create_llm
+from .hooks import AgentHooks
 from .leader import LeaderAgent
 from .router import classify, SPECIALISTS, _CHAT_ONLY, reload_routing
 from .workers import build_workers
@@ -19,8 +23,13 @@ class Agent:
         self.max_history = int(config.agent.get("max_history", 32))
         self.tool_history: list[str] = []
         self.last_specialist = "总代理"
-        self.leader = LeaderAgent(self.llm, self.max_iterations, self.max_history, self.tool_history)
-        self.workers = build_workers(self.llm, self.max_iterations, self.max_history, self.tool_history)
+        # 插件化循环钩子：统一传给 Leader 与各 worker（BaseAgent 无 hooks 时零开销）
+        self.hooks = AgentHooks()
+        self._event_sessions: set[str] = set()  # 已写 session/created 事件的会话 id
+        self.leader = LeaderAgent(self.llm, self.max_iterations, self.max_history,
+                                  self.tool_history, hooks=self.hooks)
+        self.workers = build_workers(self.llm, self.max_iterations, self.max_history,
+                                     self.tool_history, hooks=self.hooks)
 
     def reconfigure(self):
         """模型设置 / 管家团队配置变更后：重建 LLM、路由表与工作 Agent。"""
@@ -32,24 +41,37 @@ class Agent:
         self.leader.max_iterations = self.max_iterations
         self.leader.max_history = self.max_history
         # 重建工作 Agent（增删改/启停后生效；新实例保留原 tool_history 引用）
-        self.workers = build_workers(self.llm, self.max_iterations, self.max_history, self.tool_history)
+        self.workers = build_workers(self.llm, self.max_iterations, self.max_history,
+                                     self.tool_history, hooks=self.hooks)
         for w in self.workers.values():
             w.llm = self.llm
             w.max_iterations = self.max_iterations
             w.max_history = self.max_history
 
-    def run(self, user_input: str, chat_history: list | None = None, specialist: str = "自动") -> str:
+    def run(self, user_input: str, chat_history: list | None = None,
+            specialist: str = "自动", sess_id: str | None = None) -> str:
         """Leader 接收用户输入：路由 → 派发 → 汇总。
 
         - 闲聊/问答 → Leader 直接答（不带工具）。
         - 未命中任何专员（兜底）→ Leader 使用全量工具自己处理（保持原有兜底能力）。
         - 命中专员 → 工作 Agent 用独立上下文执行，结果回传 Leader 汇总。
+        sess_id 传入时开启会话事件日志（session/created / agent/assign）。
         """
         pinned = None if specialist in (None, "自动") else specialist
         who = classify(user_input, pinned)
         self.last_specialist = who
         self.tool_history.clear()
         self.tool_history.append(f"👤 总代理 → {who}")
+
+        # 会话事件日志：路由结果（一行级侵入，不影响行为）
+        if sess_id:
+            self.leader.sess_id = sess_id
+            for w in self.workers.values():
+                w.sess_id = sess_id
+            if sess_id not in self._event_sessions:
+                append_event(sess_id, {"type": "session/created", "ts": time.time()})
+                self._event_sessions.add(sess_id)
+            append_event(sess_id, {"type": "agent/assign", "agent": who})
 
         # 首次运行时把外部全局历史注入各 Agent 的独立上下文
         self.leader.seed_history(chat_history)

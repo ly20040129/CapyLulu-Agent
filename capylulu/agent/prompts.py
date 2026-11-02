@@ -230,3 +230,38 @@ OFFLINE_AGENT_PROMPT = PERSONA + """你是「离线小助手」模式的噜噜�
 
 # 兼容旧引用（总代理人设兜底）
 SYSTEM_PROMPT = LEADER_PROMPT
+
+
+# ---------------- 提示词片段注册（prompt_assembly 动态组装用） ----------------
+# 现有常量原样保留（旧引用兼容，一字不改）；此处额外把公共片段与各角色定位段
+# 注册进 prompt_assembly.SECTIONS，供 compose_prompt 按
+# persona + agent_key (+ TOOL_GUIDE/OFFLINE_HINT) 拼装新 prompt。
+
+def _extract_middle(full: str, prefix: str, suffix: str | None = None) -> str:
+    """从「公共前缀 + 角色段 + 公共尾部」的完整常量中提取角色段（不修改常量）。"""
+    body = full[len(prefix):] if full.startswith(prefix) else full
+    if suffix and body.endswith(suffix):
+        body = body[:-len(suffix)]
+    return body
+
+
+def register_prompt_sections() -> None:
+    """把现有 prompt 常量注册进 prompt_assembly.SECTIONS（幂等，可重复调用）。
+
+    注册 key：persona / TOOL_GUIDE / OFFLINE_HINT / leader / file / computer /
+    browser / app / offline。公共片段注册原文；agent 片段为从现有常量中提取的
+    角色定位段（不含 persona 与公共尾部），供 compose_prompt 拼装。
+    """
+    from ..prompt_assembly import register_section
+    register_section("persona", PERSONA)
+    register_section("TOOL_GUIDE", TOOL_GUIDE)
+    register_section("OFFLINE_HINT", OFFLINE_HINT)
+    register_section("leader", _extract_middle(LEADER_PROMPT, PERSONA, OFFLINE_HINT))
+    register_section("file", _extract_middle(FILE_AGENT_PROMPT, PERSONA, TOOL_GUIDE))
+    register_section("computer", _extract_middle(COMPUTER_AGENT_PROMPT, PERSONA, TOOL_GUIDE))
+    register_section("browser", _extract_middle(BROWSER_AGENT_PROMPT, PERSONA, TOOL_GUIDE))
+    register_section("app", _extract_middle(APP_AGENT_PROMPT, PERSONA, TOOL_GUIDE))
+    register_section("offline", _extract_middle(OFFLINE_AGENT_PROMPT, PERSONA))
+
+
+register_prompt_sections()

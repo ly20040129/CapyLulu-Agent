@@ -292,6 +292,68 @@ def _fmt() -> str:
     return "\n".join(lines)
 
 
+# ---- 后台任务目标化（P2） ----
+
+GOAL_STATUSES = ("pending", "in_progress", "done", "failed")
+
+
+def set_goal(text: str, goal: str, status: str = "pending") -> str:
+    """按任务文本挂载目标描述与状态（goal / goal_status / resume_attempts）。
+
+    status 缺省 "pending"；非法状态回退 pending；旧任务无字段时补默认值。
+    返回确认文本或未找到提示。
+    """
+    text = (text or "").strip()
+    goal = (goal or "").strip()
+    if not text or not goal:
+        return "任务文本与目标描述都不能为空。"
+    if status not in GOAL_STATUSES:
+        status = "pending"
+    items = load()
+    for item in items:
+        if item.get("text") == text:
+            item["goal"] = goal
+            item["goal_status"] = status
+            item.setdefault("resume_attempts", 0)
+            save(items)
+            return f"已为任务挂载目标：{text} → 「{goal}」（状态 {status}）"
+    return f"未找到任务：{text}"
+
+
+def update_goal_status(text: str, status: str) -> str:
+    """更新任务目标状态（pending / in_progress / done / failed）。"""
+    text = (text or "").strip()
+    if not text:
+        return "任务文本不能为空。"
+    if status not in GOAL_STATUSES:
+        return f"非法状态：{status}（可选 {'/'.join(GOAL_STATUSES)}）"
+    items = load()
+    for item in items:
+        if item.get("text") == text:
+            item["goal_status"] = status
+            save(items)
+            return f"任务目标状态已更新：{text} → {status}"
+    return f"未找到任务：{text}"
+
+
+def pending_goals() -> list[dict]:
+    """未完成目标清单（goal_status ∈ pending/in_progress），供后续轮次续跑。"""
+    goals = []
+    for item in load():
+        status = item.get("goal_status")
+        goal = (item.get("goal") or "").strip()
+        if status in ("pending", "in_progress") and goal:
+            goals.append({
+                "text": item.get("text", ""),
+                "goal": goal,
+                "goal_status": status,
+                "resume_attempts": item.get("resume_attempts", 0),
+                "kind": item.get("kind", ""),
+                "next": item.get("next", ""),
+            })
+    return goals
+
+
 # ---- 执行记录 ----
 
 def load_logs() -> list[dict]:

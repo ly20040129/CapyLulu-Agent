@@ -464,6 +464,155 @@ tools/file_ops.py           文件管家调 search_files / list_dir 找到发票
 
 ---
 
+## 插件化内核（Plugin Kernel）
+
+对标 DeepSeek Harness「一切皆插件」范式，capylulu 内核以插件化方式组织：**模型适配器（LLM Provider）、工具（Tool）、会话事件（Event）、Agent 循环（Loop）、上下文压缩、提示词组装、交付物登记、任务目标化**均可独立注册 / 卸载 / 替换，旧调用方无需改动。本批次新增 / 改造模块如下：
+
+| 模块 | 能力 | 关键入口 |
+| :--- | :--- | :--- |
+| `capylulu/plugin.py` | 插件基座：注册 / 卸载 / 查询 | `register(plugin)` / `unregister(name)` / `is_registered(name)` |
+| `capylulu/llm/registry.py` | LLM Provider 注册表 | `register_provider(name, factory)` / `create_llm(provider=None)` |
+| `capylulu/tools/registry.py` | 动态工具 + pre/post 钩子 + HIGH 工具审批 | `register_dynamic(...)` / `add_hook(...)` / `approve_once(...)` / `reject_approval(...)` |
+| `capylulu/agent/hooks.py` | Agent 循环阶段钩子 | `register_loop_hook(phase, fn)` / `remove_loop_hook(...)` / `AgentHooks` |
+| `capylulu/history_events.py` | 会话事件日志（JSONL） | `append_event(...)` / `replay(...)` / `clear_events(...)` |
+| `capylulu/compaction.py` | 上下文压缩 | `compress_messages(...)` |
+| `capylulu/prompt_assembly.py` | 提示词片段注册与组装 | `register_section(...)` / `compose_prompt(...)` |
+| `capylulu/deliverables.py` | 交付物登记台账 | `register_deliverable(...)` / `list_deliverables(...)` / `unregister_deliverable(...)` |
+| `capylulu/tools/extra.py` | 轻量审批工具（暴露给 LLM） | `approve_tool(name)` / `reject_tool(name)` |
+| `capylulu/tasks.py` | 后台任务目标化 | `set_goal(...)` / `update_goal_status(...)` / `pending_goals()` |
+
+### 插件基座 `plugin.py`
+
+`Plugin` 数据类声明插件元信息与 `setup` / `teardown` 副作用；`register` 失败（同名或 setup 抛异常）自动回滚：
+
+```python
+from capylulu import plugin
+
+p = plugin.Plugin(
+    name="my_plugin", version="1.0",
+    description="示例插件",
+    setup=lambda: print("hello"),   # 注册时执行；异常自动回滚
+    teardown=lambda: print("bye"),  # 卸载时执行
+)
+plugin.register(p)                  # True
+plugin.is_registered("my_plugin")   # True
+plugin.unregister("my_plugin")      # True
+```
+
+### LLM Provider 注册表 `llm/registry.py`
+
+`create_llm(provider=None)` 按名称创建客户端，缺省读 `config.llm.provider`（回退 `openai_compatible`）；旧配置（如 zhipu / deepseek）无对应工厂时自动回退 openai_compatible 工厂，行为不变：
+
+```python
+from capylulu.llm.registry import register_provider, create_llm
+
+# 注册自定义 provider：factory(cfg) -> LLMClient
+register_provider("my_llm", lambda cfg: MyClient(cfg))
+
+llm = create_llm()          # 默认 provider
+llm = create_llm("my_llm")  # 指定 provider
+```
+
+### 工具注册表 `tools/registry.py`
+
+- **动态工具**：`register_dynamic(name, description, parameters, call_fn, risk=MEDIUM)` 热接入（如 MCP 工具），`unregister_dynamic(name)` / `clear_dynamic(prefix)` 移除；
+- **pre / post 钩子**：`add_hook("pre", fn)` / `add_hook("post", fn)`。pre 返回 dict 改写参数、返回 None 放行、抛 `ToolBlocked(原因)` 阻断执行；post 返回 str 改写结果；
+- **HIGH 工具审批**：`config.agent.approval_policy`（默认 `deny`）。`deny` 禁止自动执行；`ask` 时可用 `approve_once(name, arguments=None)` 建立一次性质押（参数精确匹配），执行一次后自动清除，`reject_approval(name)` 撤销全部质押：
+
+```python
+from capylulu.tools.registry import add_hook, ToolBlocked, approve_once, reject_approval
+
+def block_secret(name, arguments):
+    if name == "read_file" and "secret" in str(arguments):
+        raise ToolBlocked("敏感路径，已拦截")
+    return arguments  # 或 None 放行
+
+add_hook("pre", block_secret)
+approve_once("window_close")      # 放行一次（policy=ask 时生效）
+reject_approval("window_close")   # 撤销全部质押
+```
+
+### Agent 循环钩子 `agent/hooks.py`
+
+实例级 `AgentHooks(listeners)` 与模块级全局钩子，阶段为 `before_llm / after_llm / before_tool / after_tool`：
+
+```python
+from capylulu.agent.hooks import register_loop_hook
+
+register_loop_hook("before_tool", lambda name, arguments: arguments)
+register_loop_hook("after_tool", lambda name, arguments, result: result)
+```
+
+### 会话事件日志 `history_events.py`
+
+按会话逐行追加 JSONL（`data/sessions/<sess_id>.jsonl`），`replay` 重放为 OpenAI messages（user / assistant / tool 三角色）：
+
+```python
+from capylulu import history_events as ev
+
+ev.append_event("sess_1", {"type": "user/message", "content": "你好"})
+messages = ev.replay("sess_1")   # 重放为 messages
+ev.clear_events("sess_1")        # 清空该会话日志
+```
+
+- 开关：`config.agent.event_log`（默认 `True`）；超长 `tool/result` 截断至 500 字符并追加「...(已截断)」；
+- 自定义写入后端：`register_event_writer(name, fn)` 可替换默认 JSONL。
+
+### 上下文压缩 `compaction.py`
+
+`compress_messages(messages, llm, max_history, prompt=None, sess_id=None)`：历史超阈值时压缩为 `[system, 历史摘要, recent]`；LLM 压缩失败回退「（旧对话已省略，仅保留最近上下文）」：
+
+```python
+from capylulu.compaction import compress_messages
+
+compressed = compress_messages(history, llm, max_history=32)
+```
+
+- 阈值：`config.agent.compaction_threshold`，缺省沿用 `max_history`；触发且带 `sess_id` 时写 compress 事件。
+
+### 提示词组装 `prompt_assembly.py`
+
+`register_section(name, text)` 注册片段，`compose_prompt(agent_key, tool_names=None)` 按 Agent 拼装（缺失抛 KeyError）：
+
+```python
+from capylulu.prompt_assembly import register_section, compose_prompt
+
+register_section("extra_note", "请遵守以上规则。")
+prompt = compose_prompt("file_worker", tool_names=["read_file", "write_file"])
+```
+
+### 交付物登记 `deliverables.py`
+
+任务产出的文件自动登记到 `data/deliverables.json`（`config.agent.deliverables_track` 默认 `True`；`file_ops.py` 写文件时自动登记）：
+
+```python
+from capylulu import deliverables
+
+deliverables.register_deliverable("task_1", "D:/out/report.md", kind="file", note="最终报告")
+deliverables.list_deliverables("task_1")       # 按任务查
+deliverables.unregister_deliverable("task_1", "D:/out/report.md")
+```
+
+### 轻量审批工具 `tools/extra.py`
+
+暴露给 LLM 的两个 low 风险工具：`approve_tool(name, arguments=None)` 放行指定 HIGH 工具一次，`reject_tool(name)` 撤销质押（配合 `approval_policy=ask` 使用）。
+
+### 后台任务目标化 `tasks.py`
+
+定时任务可挂载目标描述与状态，供后续轮次续跑：
+
+```python
+from capylulu import tasks
+
+tasks.set_goal("每天 18:40 提醒我下班", "发送下班提醒", status="pending")
+tasks.update_goal_status("每天 18:40 提醒我下班", "done")
+pending = tasks.pending_goals()   # goal_status ∈ pending / in_progress
+```
+
+- 字段：`goal` / `goal_status`（pending / in_progress / done / failed）/ `resume_attempts`；旧任务自动补默认值。
+
+---
+
 ## 常见问题
 
 | 问题 | 处理 |

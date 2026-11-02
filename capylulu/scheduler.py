@@ -112,9 +112,13 @@ def write_note(text: str, ts: str) -> Path:
 # ---- 调度 ----
 
 def _execute(item: dict, triggered: datetime.datetime) -> None:
-    """执行一个到期任务：自动任务走引擎；旧便签任务走便签 + 通知 + 写日志。"""
+    """执行一个到期任务：自动任务走引擎；旧便签任务走便签 + 通知 + 写日志。
+
+    自动任务若带 goal 且状态 pending，先置 in_progress，执行成功置 done、失败置 failed，
+    resume_attempts 递增（目标状态机，P2）。
+    """
     if tasks.is_auto(item):
-        _execute_auto(item)
+        _execute_auto_with_goal(item)
         return
     text = item.get("text", "")
     action = item.get("action", "both")
@@ -136,7 +140,24 @@ def _execute(item: dict, triggered: datetime.datetime) -> None:
     logger.info(f"[Scheduler] 任务已执行：{text}，结果：{'；'.join(results) or '已执行'}")
 
 
-def _execute_auto(item: dict) -> None:
+def _execute_auto_with_goal(item: dict) -> None:
+    """执行自动任务并推进目标状态机（goal 存在且 pending 时）。
+
+    执行前 pending → in_progress；成功后 done、失败 failed；resume_attempts 递增。
+    未挂 goal 的任务仅正常执行，不引入任何新字段。
+    """
+    has_goal = bool((item.get("goal") or "").strip())
+    was_pending = has_goal and item.get("goal_status") == "pending"
+    if was_pending:
+        item["goal_status"] = "in_progress"
+    result = _execute_auto(item)
+    if was_pending:
+        ok = bool(result.get("ok"))
+        item["goal_status"] = "done" if ok else "failed"
+        item["resume_attempts"] = int(item.get("resume_attempts", 0)) + 1
+
+
+def _execute_auto(item: dict) -> dict:
     """执行自动任务：引擎内部负责白名单/防重入锁/写日志/通知，此处记录调度侧摘要。"""
     result = task_engine.execute_auto(item)
     summary = result.get("result") or result.get("error") or "已执行"
@@ -155,6 +176,7 @@ def _execute_auto(item: dict) -> None:
         )
     except Exception:  # noqa: BLE001
         pass
+    return result
 
 
 def _tick() -> None:
